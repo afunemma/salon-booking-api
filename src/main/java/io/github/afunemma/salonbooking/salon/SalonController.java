@@ -1,0 +1,60 @@
+package io.github.afunemma.salonbooking.salon;
+
+import java.net.URI;
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
+import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
+import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
+import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/api/salons")
+@Tag(name = "Salons", description = "Set up a salon and the services it offers")
+class SalonController {
+
+	private final SalonService salonService;
+
+	SalonController(SalonService salonService) {
+		this.salonService = salonService;
+	}
+
+	@PostMapping
+	@Operation(summary = "Create a salon")
+	ResponseEntity<SalonResponse> createSalon(@Valid @RequestBody CreateSalonRequest request) {
+		SalonResponse salon = salonService.createSalon(request);
+		return ResponseEntity.created(URI.create("/api/salons/" + salon.id())).body(salon);
+	}
+
+	@GetMapping("/{salonId}")
+	@Operation(summary = "Get a salon")
+	SalonResponse getSalon(@PathVariable Long salonId) {
+		return salonService.getSalon(salonId);
+	}
+
+	@PostMapping("/{salonId}/services")
+	@Operation(summary = "Add a service, e.g. a 35-minute haircut")
+	ResponseEntity<ServiceResponse> addService(@PathVariable Long salonId,
+			@Valid @RequestBody CreateServiceRequest request) {
+		ServiceResponse service = salonService.addService(salonId, request);
+		return ResponseEntity.created(URI.create("/api/salons/" + salonId + "/services/" + service.id()))
+				.body(service);
+	}
+
+	@GetMapping("/{salonId}/services")
+	@Operation(summary = "List a salon's services")
+	List<ServiceResponse> listServices(@PathVariable Long salonId) {
+		return salonService.listServices(salonId);
+	}
+}

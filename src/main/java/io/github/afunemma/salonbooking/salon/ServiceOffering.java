@@ -54,6 +54,9 @@ public class ServiceOffering {
 		if (duration.toMinutes() < 1) {
 			throw new IllegalArgumentException("duration must be at least one minute");
 		}
+		if (priceFromCents != null && priceToCents != null && priceToCents < priceFromCents) {
+			throw new IllegalArgumentException("priceToCents must not be lower than priceFromCents");
+		}
 		this.durationMinutes = Math.toIntExact(duration.toMinutes());
 		this.priceFromCents = priceFromCents;
 		this.priceToCents = priceToCents;

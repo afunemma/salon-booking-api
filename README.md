@@ -4,7 +4,7 @@
 
 A REST API that lets clients book appointments at salons (barbers, hair, braids, nails and beauty). It is built with Java and Spring Boot.
 
-> **Status: work in progress.** The scheduling logic and the database layer are done and tested. The REST endpoints and security are next (see the [roadmap](#roadmap)).
+> **Status: work in progress.** The REST API, scheduling logic and database layer are done and tested. Double-booking protection and security are next (see the [roadmap](#roadmap)).
 
 ## Why this project
 
@@ -22,6 +22,7 @@ The goal is to let clients book themselves and to cut no-shows, without adding a
 |---|---|
 | Language | Java 25 |
 | Framework | Spring Boot 4 |
+| API | REST with Spring MVC, Bean Validation, OpenAPI / Swagger UI (springdoc) |
 | Database | PostgreSQL 18, with Flyway migrations and Spring Data JPA |
 | Build | Maven (wrapper included) |
 | Testing | JUnit 5, AssertJ, Testcontainers (real PostgreSQL in Docker) |
@@ -38,7 +39,48 @@ You need Java 25 or newer and Docker.
 
 `spring-boot:run` starts PostgreSQL from `compose.yaml` automatically and stops it when the app stops. Flyway creates the tables on startup.
 
-Health check: <http://localhost:8080/actuator/health>
+- Swagger UI (try every endpoint in the browser): <http://localhost:8080/swagger-ui.html>
+- Health check: <http://localhost:8080/actuator/health>
+
+## API
+
+| Method | Endpoint | What it does |
+|---|---|---|
+| `POST` | `/api/salons` | Create a salon with opening hours |
+| `GET` | `/api/salons/{salonId}` | Get a salon |
+| `POST` | `/api/salons/{salonId}/services` | Add a service, e.g. a 35-minute haircut at R50–R100 |
+| `GET` | `/api/salons/{salonId}/services` | List a salon's services |
+| `GET` | `/api/salons/{salonId}/free-slots?serviceId=&date=` | Free start times for a service on a date |
+| `POST` | `/api/salons/{salonId}/bookings` | Book a free slot |
+| `GET` | `/api/salons/{salonId}/bookings?date=` | The salon's day view |
+| `POST` | `/api/salons/{salonId}/bookings/{bookingId}/cancel` · `/complete` · `/no-show` | Update a booking |
+
+Example: book a haircut.
+
+```bash
+curl -X POST localhost:8080/api/salons/1/bookings -H 'Content-Type: application/json' \
+  -d '{"serviceId": 1, "clientName": "Thabo", "clientPhone": "082 123 4567", "date": "2030-01-07", "startTime": "10:00"}'
+```
+
+```json
+{"id": 1, "serviceId": 1, "serviceName": "Haircut", "clientName": "Thabo", "clientPhone": "082 123 4567",
+ "date": "2030-01-07", "startTime": "10:00:00", "endTime": "10:35:00", "status": "BOOKED"}
+```
+
+Errors use the standard [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) format, and validation errors name every invalid field:
+
+```json
+{"status": 409, "title": "Slot unavailable", "detail": "10:15 is not available on 2030-01-07 for Haircut"}
+
+{"status": 400, "title": "Invalid request", "detail": "One or more fields are invalid",
+ "errors": {"clientName": "must not be blank", "clientPhone": "must be a phone number, e.g. 082 123 4567"}}
+```
+
+### Design notes
+
+- **Layers:** controller (HTTP) → service (business rules, transactions) → repository (database). Controllers never touch entities; they use request and response records, so the database can change without breaking API clients.
+- **Business rules are checked on the server:** no bookings in the past, only times the salon actually offers, and a salon can only use its own services and bookings.
+- **Time zone:** "today" and "now" come from an injected `Clock` set to `Africa/Johannesburg`, so the rules stay correct on a UTC server and tests can freeze time.
 
 ## How free slots are found
 
@@ -76,7 +118,7 @@ salon ──< service_offering
 - [x] Slot-finding logic with unit tests
 - [x] CI pipeline with GitHub Actions
 - [x] PostgreSQL + Flyway migrations, running in Docker, with Testcontainers tests
-- [ ] REST API for salons, services, free slots and bookings, with OpenAPI docs
+- [x] REST API for salons, services, free slots and bookings, with OpenAPI docs
 - [ ] Prevent double bookings when two clients book the same slot at once
 - [ ] Authentication and roles (owner, staff, client), with each salon's data kept separate
 - [ ] Error handling, logging and an architecture diagram
