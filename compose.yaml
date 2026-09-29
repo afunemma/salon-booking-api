@@ -1,0 +1,11 @@
+# Local PostgreSQL for development.
+# Spring Boot starts this automatically when you run the app (spring-boot-docker-compose).
+services:
+  postgres:
+    image: 'postgres:18'
+    environment:
+      - 'POSTGRES_DB=salon_booking'
+      - 'POSTGRES_USER=salon'
+      - 'POSTGRES_PASSWORD=salon'
+    ports:
+      - '5432'

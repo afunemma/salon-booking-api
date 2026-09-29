@@ -8,6 +8,9 @@ import java.util.Objects;
 
 /**
  * Works out which start times are still free for a service on one day.
+ * <p>
+ * Deliberately knows nothing about the database: it works on plain time ranges,
+ * so it is easy to test and does not change when the persistence layer does.
  */
 public final class SlotFinder {
 
@@ -15,18 +18,21 @@ public final class SlotFinder {
 	}
 
 	/**
-	 * @param hours    when the salon opens and closes
-	 * @param bookings appointments that are already taken
-	 * @param service  the service the client wants
-	 * @param step     gap between candidate start times, e.g. every 15 minutes
+	 * @param hours         when the salon opens and closes
+	 * @param taken         times that are already booked
+	 * @param serviceLength how long the new appointment will take
+	 * @param step          gap between candidate start times, e.g. every 15 minutes
 	 * @return every start time where the service fits without clashing, in order
 	 */
-	public static List<LocalTime> findFreeSlots(OpeningHours hours, List<Booking> bookings,
-			ServiceOffering service, Duration step) {
+	public static List<LocalTime> findFreeSlots(OpeningHours hours, List<TimeRange> taken,
+			Duration serviceLength, Duration step) {
 		Objects.requireNonNull(hours, "hours must not be null");
-		Objects.requireNonNull(bookings, "bookings must not be null");
-		Objects.requireNonNull(service, "service must not be null");
+		Objects.requireNonNull(taken, "taken must not be null");
+		Objects.requireNonNull(serviceLength, "serviceLength must not be null");
 		Objects.requireNonNull(step, "step must not be null");
+		if (serviceLength.toMinutes() < 1) {
+			throw new IllegalArgumentException("serviceLength must be at least one minute");
+		}
 		if (step.toMinutes() < 1) {
 			throw new IllegalArgumentException("step must be at least one minute");
 		}
@@ -35,12 +41,12 @@ public final class SlotFinder {
 		// Count minutes from opening instead of adding to LocalTime directly,
 		// because LocalTime wraps around midnight (23:30 + 1 hour = 00:30).
 		long minutesOpen = Duration.between(hours.open(), hours.close()).toMinutes();
-		long serviceMinutes = service.duration().toMinutes();
+		long serviceMinutes = serviceLength.toMinutes();
 
 		for (long offset = 0; offset + serviceMinutes <= minutesOpen; offset += step.toMinutes()) {
 			LocalTime start = hours.open().plusMinutes(offset);
-			LocalTime end = start.plus(service.duration());
-			if (bookings.stream().noneMatch(booking -> booking.overlaps(start, end))) {
+			TimeRange candidate = new TimeRange(start, start.plusMinutes(serviceMinutes));
+			if (taken.stream().noneMatch(candidate::overlaps)) {
 				freeSlots.add(start);
 			}
 		}

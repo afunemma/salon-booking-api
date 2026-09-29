@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class SlotFinderTest {
 
 	private static final OpeningHours NINE_TO_EIGHT = new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0));
-	private static final ServiceOffering HAIRCUT = new ServiceOffering("Haircut", Duration.ofMinutes(35));
+	private static final Duration HAIRCUT = Duration.ofMinutes(35);
 	private static final Duration EVERY_15_MIN = Duration.ofMinutes(15);
 
 	@Test
@@ -29,7 +29,7 @@ class SlotFinderTest {
 	@Test
 	@DisplayName("Times that would overlap an existing booking are not offered")
 	void hidesClashingTimes() {
-		Booking thabo = new Booking("Thabo", LocalTime.of(10, 0), HAIRCUT.duration());
+		TimeRange thabo = new TimeRange(LocalTime.of(10, 0), LocalTime.of(10, 35));
 
 		List<LocalTime> slots = SlotFinder.findFreeSlots(NINE_TO_EIGHT, List.of(thabo), HAIRCUT, EVERY_15_MIN);
 
@@ -41,7 +41,7 @@ class SlotFinderTest {
 	@Test
 	@DisplayName("A new booking may start exactly when the previous one ends")
 	void backToBackBookingsAreAllowed() {
-		Booking thabo = new Booking("Thabo", LocalTime.of(10, 0), HAIRCUT.duration());
+		TimeRange thabo = new TimeRange(LocalTime.of(10, 0), LocalTime.of(10, 35));
 
 		List<LocalTime> slots = SlotFinder.findFreeSlots(NINE_TO_EIGHT, List.of(thabo), HAIRCUT, Duration.ofMinutes(5));
 
@@ -51,8 +51,8 @@ class SlotFinderTest {
 	@Test
 	@DisplayName("A long service only fits where there is a big enough gap")
 	void longServiceNeedsBigGap() {
-		ServiceOffering braids = new ServiceOffering("Box braids", Duration.ofHours(5));
-		Booking lunch = new Booking("Lunch", LocalTime.of(13, 0), Duration.ofHours(1));
+		Duration braids = Duration.ofHours(5);
+		TimeRange lunch = new TimeRange(LocalTime.of(13, 0), LocalTime.of(14, 0));
 
 		List<LocalTime> slots = SlotFinder.findFreeSlots(NINE_TO_EIGHT, List.of(lunch), braids, Duration.ofHours(1));
 
@@ -64,7 +64,7 @@ class SlotFinderTest {
 	@DisplayName("A service longer than the whole day has no slots")
 	void serviceLongerThanDay() {
 		OpeningHours shortDay = new OpeningHours(LocalTime.of(9, 0), LocalTime.of(10, 0));
-		ServiceOffering twoHours = new ServiceOffering("Relaxer", Duration.ofHours(2));
+		Duration twoHours = Duration.ofHours(2);
 
 		assertThat(SlotFinder.findFreeSlots(shortDay, List.of(), twoHours, EVERY_15_MIN)).isEmpty();
 	}
@@ -73,7 +73,7 @@ class SlotFinderTest {
 	@DisplayName("Late-night opening hours do not wrap around midnight")
 	void doesNotWrapPastMidnight() {
 		OpeningHours lateDay = new OpeningHours(LocalTime.of(22, 0), LocalTime.of(23, 59));
-		ServiceOffering oneHour = new ServiceOffering("Colour", Duration.ofHours(1));
+		Duration oneHour = Duration.ofHours(1);
 
 		List<LocalTime> slots = SlotFinder.findFreeSlots(lateDay, List.of(), oneHour, Duration.ofMinutes(30));
 

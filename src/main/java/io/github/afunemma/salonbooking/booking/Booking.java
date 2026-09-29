@@ -1,32 +1,144 @@
 package io.github.afunemma.salonbooking.booking;
 
-import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Objects;
 
+import io.github.afunemma.salonbooking.salon.Salon;
+import io.github.afunemma.salonbooking.salon.ServiceOffering;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
 /**
- * A client's appointment: who, when it starts and how long it takes.
+ * A client's appointment at a salon.
+ * <p>
+ * The end time is stored (not just calculated) so the database can check
+ * for overlapping bookings later on.
  */
-public record Booking(String clientName, LocalTime start, Duration duration) {
+@Entity
+@Table(name = "booking")
+public class Booking {
 
-	public Booking {
-		Objects.requireNonNull(clientName, "clientName must not be null");
-		Objects.requireNonNull(start, "start must not be null");
-		Objects.requireNonNull(duration, "duration must not be null");
-		if (duration.isNegative() || duration.isZero()) {
-			throw new IllegalArgumentException("duration must be positive");
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "salon_id")
+	private Salon salon;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "service_offering_id")
+	private ServiceOffering service;
+
+	@Column(nullable = false)
+	private String clientName;
+
+	@Column(nullable = false)
+	private String clientPhone;
+
+	@Column(nullable = false)
+	private LocalDate bookingDate;
+
+	@Column(nullable = false)
+	private LocalTime startTime;
+
+	@Column(nullable = false)
+	private LocalTime endTime;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private BookingStatus status;
+
+	@Column(nullable = false, updatable = false)
+	private Instant createdAt;
+
+	protected Booking() {
+	}
+
+	public Booking(ServiceOffering service, String clientName, String clientPhone, LocalDate bookingDate,
+			LocalTime startTime) {
+		this.service = Objects.requireNonNull(service, "service must not be null");
+		this.salon = service.getSalon();
+		this.clientName = Objects.requireNonNull(clientName, "clientName must not be null");
+		this.clientPhone = Objects.requireNonNull(clientPhone, "clientPhone must not be null");
+		this.bookingDate = Objects.requireNonNull(bookingDate, "bookingDate must not be null");
+		this.startTime = Objects.requireNonNull(startTime, "startTime must not be null");
+		this.endTime = startTime.plus(service.getDuration());
+		this.status = BookingStatus.BOOKED;
+		this.createdAt = Instant.now();
+	}
+
+	public TimeRange getTimeRange() {
+		return new TimeRange(startTime, endTime);
+	}
+
+	public void cancel() {
+		changeStatus(BookingStatus.CANCELLED);
+	}
+
+	public void markCompleted() {
+		changeStatus(BookingStatus.COMPLETED);
+	}
+
+	public void markNoShow() {
+		changeStatus(BookingStatus.NO_SHOW);
+	}
+
+	private void changeStatus(BookingStatus newStatus) {
+		if (status != BookingStatus.BOOKED) {
+			throw new IllegalStateException("Booking is already " + status);
 		}
+		status = newStatus;
 	}
 
-	public LocalTime end() {
-		return start.plus(duration);
+	public Long getId() {
+		return id;
 	}
 
-	/**
-	 * Two time ranges overlap when each one starts before the other ends.
-	 * Touching ranges (one ends at 10:35, the next starts at 10:35) do not overlap.
-	 */
-	public boolean overlaps(LocalTime otherStart, LocalTime otherEnd) {
-		return start.isBefore(otherEnd) && otherStart.isBefore(end());
+	public Salon getSalon() {
+		return salon;
+	}
+
+	public ServiceOffering getService() {
+		return service;
+	}
+
+	public String getClientName() {
+		return clientName;
+	}
+
+	public String getClientPhone() {
+		return clientPhone;
+	}
+
+	public LocalDate getBookingDate() {
+		return bookingDate;
+	}
+
+	public LocalTime getStartTime() {
+		return startTime;
+	}
+
+	public LocalTime getEndTime() {
+		return endTime;
+	}
+
+	public BookingStatus getStatus() {
+		return status;
+	}
+
+	public Instant getCreatedAt() {
+		return createdAt;
 	}
 }

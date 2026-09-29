@@ -4,7 +4,7 @@
 
 A REST API that lets clients book appointments at salons (barbers, hair, braids, nails and beauty). It is built with Java and Spring Boot.
 
-> **Status: work in progress.** The core scheduling logic is done and tested. The database, REST endpoints and security are next (see the [roadmap](#roadmap)).
+> **Status: work in progress.** The scheduling logic and the database layer are done and tested. The REST endpoints and security are next (see the [roadmap](#roadmap)).
 
 ## Why this project
 
@@ -22,18 +22,21 @@ The goal is to let clients book themselves and to cut no-shows, without adding a
 |---|---|
 | Language | Java 25 |
 | Framework | Spring Boot 4 |
+| Database | PostgreSQL 18, with Flyway migrations and Spring Data JPA |
 | Build | Maven (wrapper included) |
-| Testing | JUnit 5, AssertJ |
+| Testing | JUnit 5, AssertJ, Testcontainers (real PostgreSQL in Docker) |
 | CI | GitHub Actions: builds and tests every push |
 
 ## Run it
 
-You need Java 25 or newer.
+You need Java 25 or newer and Docker.
 
 ```bash
-./mvnw verify           # build and run all tests
+./mvnw verify           # build and run all tests (starts a throwaway PostgreSQL in Docker)
 ./mvnw spring-boot:run  # start the app on http://localhost:8080
 ```
+
+`spring-boot:run` starts PostgreSQL from `compose.yaml` automatically and stops it when the app stops. Flyway creates the tables on startup.
 
 Health check: <http://localhost:8080/actuator/health>
 
@@ -53,11 +56,26 @@ Edge cases covered by tests:
 - long services that only fit in big gaps (5-hour braids)
 - late opening hours that must not wrap past midnight
 
+## Database design
+
+The schema lives in versioned Flyway migrations (`src/main/resources/db/migration`). Hibernate only *validates* that the entities match it, and never changes the database itself.
+
+```
+salon ──< service_offering
+  │             │
+  └──< booking >┘
+```
+
+- **Prices are stored in cents** (R50 is `5000`) to avoid rounding errors, as a range, because many salons quote "R50 to R100".
+- **The database enforces its own rules** with `CHECK` constraints: opening time before closing time, a price range that doesn't go backwards, and a valid booking status. Bad data is rejected even if the application has a bug.
+- **Booking end times are stored**, not just calculated, so the database can later prevent overlapping bookings.
+- `SlotFinder` works on plain `TimeRange` values and has no database dependency, so the core logic stays easy to test.
+
 ## Roadmap
 
 - [x] Slot-finding logic with unit tests
 - [x] CI pipeline with GitHub Actions
-- [ ] PostgreSQL + Flyway migrations, running in Docker
+- [x] PostgreSQL + Flyway migrations, running in Docker, with Testcontainers tests
 - [ ] REST API for salons, services, free slots and bookings, with OpenAPI docs
 - [ ] Prevent double bookings when two clients book the same slot at once
 - [ ] Authentication and roles (owner, staff, client), with each salon's data kept separate
