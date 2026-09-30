@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,9 @@ import io.github.afunemma.salonbooking.salon.ServiceOffering;
 @Service
 @Transactional(readOnly = true)
 public class BookingService {
+
+	/** Name of the database constraint that rejects overlapping bookings (see V2 migration). */
+	private static final String OVERLAP_CONSTRAINT = "booking_no_overlap";
 
 	private final BookingRepository bookings;
 	private final SalonService salonService;
@@ -44,11 +48,18 @@ public class BookingService {
 	/**
 	 * Books a slot if it is still free.
 	 * <p>
-	 * Known limitation: two requests for the same slot at the same moment can both
-	 * pass the check before either is saved. Preventing that is the next roadmap step.
+	 * Checking "is it free?" and then saving has a race: two requests can both pass the
+	 * check before either saves. Two layers stop that:
+	 * <ol>
+	 * <li>The salon's row is locked first, so bookings for one salon run one at a time
+	 * and the second request sees the first one's booking.</li>
+	 * <li>The database's {@code booking_no_overlap} constraint rejects overlaps even if
+	 * some other code path forgets the lock.</li>
+	 * </ol>
 	 */
 	@Transactional
 	public BookingResponse book(Long salonId, CreateBookingRequest request) {
+		salonService.lockSalon(salonId);
 		ServiceOffering service = salonService.findService(salonId, request.serviceId());
 		if (request.date().isBefore(LocalDate.now(clock))) {
 			throw new IllegalArgumentException("Bookings can't be made for a date in the past");
@@ -59,7 +70,16 @@ public class BookingService {
 		}
 		Booking booking = new Booking(service, request.clientName().strip(), request.clientPhone().strip(),
 				request.date(), request.startTime());
-		return BookingResponse.from(bookings.save(booking));
+		try {
+			return BookingResponse.from(bookings.saveAndFlush(booking));
+		}
+		catch (DataIntegrityViolationException ex) {
+			if (isOverlapViolation(ex)) {
+				throw new SlotUnavailableException(request.startTime() + " on " + request.date()
+						+ " was just booked by someone else");
+			}
+			throw ex;
+		}
 	}
 
 	/** The salon's day view: every booking on a date, including cancelled ones and no-shows. */
@@ -109,6 +129,10 @@ public class BookingService {
 			return free.stream().filter(start -> start.isAfter(now)).toList();
 		}
 		return free;
+	}
+
+	private static boolean isOverlapViolation(DataIntegrityViolationException ex) {
+		return ex.getMostSpecificCause().getMessage().contains(OVERLAP_CONSTRAINT);
 	}
 
 	private Booking findBooking(Long salonId, Long bookingId) {

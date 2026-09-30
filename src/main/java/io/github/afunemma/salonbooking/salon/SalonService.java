@@ -52,6 +52,15 @@ public class SalonService {
 		return salons.findById(salonId).orElseThrow(() -> new NotFoundException("Salon " + salonId + " not found"));
 	}
 
+	/**
+	 * Locks the salon until the current transaction ends, so bookings for the same
+	 * salon are handled one at a time. Must be called inside a transaction.
+	 */
+	public void lockSalon(Long salonId) {
+		salons.findByIdForUpdate(salonId)
+				.orElseThrow(() -> new NotFoundException("Salon " + salonId + " not found"));
+	}
+
 	/** Finds a service and checks it belongs to the given salon, so one salon can't book another's services. */
 	public ServiceOffering findService(Long salonId, Long serviceId) {
 		return services.findById(serviceId)

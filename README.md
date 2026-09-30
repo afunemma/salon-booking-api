@@ -5,7 +5,7 @@
 
 A REST API that lets clients book appointments at salons (barbers, hair, braids, nails and beauty). It is built with Java and Spring Boot.
 
-> **Status: work in progress.** The REST API, scheduling logic and database layer are done and tested. Double-booking protection and security are next (see the [roadmap](#roadmap)).
+> **Status: work in progress.** The REST API, scheduling logic, database layer and double-booking protection are done and tested. Authentication and roles are next (see the [roadmap](#roadmap)).
 
 ## Why this project
 
@@ -111,8 +111,24 @@ salon ──< service_offering
 
 - **Prices are stored in cents** (R50 is `5000`) to avoid rounding errors, as a range, because many salons quote "R50 to R100".
 - **The database enforces its own rules** with `CHECK` constraints: opening time before closing time, a price range that doesn't go backwards, and a valid booking status. Bad data is rejected even if the application has a bug.
-- **Booking end times are stored**, not just calculated, so the database can later prevent overlapping bookings.
+- **Booking end times are stored**, not just calculated, so the database can check for overlapping bookings (see below).
 - `SlotFinder` works on plain `TimeRange` values and has no database dependency, so the core logic stays easy to test.
+
+## Preventing double bookings
+
+Booking works like this: check that the slot is free, then save it. On its own, that has a **race condition**. If two clients book 10:00 at the same moment, both checks can pass before either booking is saved.
+
+I wrote [a test](src/test/java/io/github/afunemma/salonbooking/booking/ConcurrentBookingTest.java) that sends 20 simultaneous requests for overlapping times. Before the fix, **10 of the 20 succeeded**. Now exactly one does, protected by two layers:
+
+1. **Pessimistic lock.** `book()` first locks the salon's row (`SELECT ... FOR UPDATE`). Bookings for the same salon wait their turn for a few milliseconds, so the second request sees the first one's booking and gets a clear `409 Slot unavailable`.
+2. **Database exclusion constraint** (a safety net, in [`V2__prevent_overlapping_bookings.sql`](src/main/resources/db/migration/V2__prevent_overlapping_bookings.sql)). PostgreSQL itself rejects any two active bookings in the same salon whose time ranges overlap (`&&`). This holds even for code paths that skip the lock.
+
+```sql
+EXCLUDE USING gist (salon_id WITH =, booking_date WITH =, timerange(start_time, end_time) WITH &&)
+WHERE (status = 'BOOKED')
+```
+
+I also tried the constraint alone. It stopped the double bookings, but under heavy contention PostgreSQL reported deadlocks between the waiting inserts, and clients got server errors. Taking the lock first keeps the requests in order and avoids the deadlocks. Locking per salon is fine at salon scale, where a salon handles a few bookings a minute, not thousands a second.
 
 ## Roadmap
 
@@ -120,7 +136,7 @@ salon ──< service_offering
 - [x] CI pipeline with GitHub Actions
 - [x] PostgreSQL + Flyway migrations, running in Docker, with Testcontainers tests
 - [x] REST API for salons, services, free slots and bookings, with OpenAPI docs
-- [ ] Prevent double bookings when two clients book the same slot at once
+- [x] Prevent double bookings when two clients book the same slot at once (lock + exclusion constraint, with a concurrency test)
 - [ ] Authentication and roles (owner, staff, client), with each salon's data kept separate
 - [ ] Error handling, logging and an architecture diagram
 - [ ] Live demo deployment

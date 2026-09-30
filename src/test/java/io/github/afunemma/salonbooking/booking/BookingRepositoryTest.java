@@ -84,6 +84,31 @@ class BookingRepositoryTest {
 	}
 
 	@Test
+	@DisplayName("The database itself rejects overlapping active bookings, even without the service's checks")
+	void databaseRejectsOverlappingBookings() {
+		bookings.saveAndFlush(new Booking(haircut, "Thabo", "0820000001", MONDAY, LocalTime.of(10, 0)));
+
+		assertThatThrownBy(() -> bookings
+				.saveAndFlush(new Booking(haircut, "Sipho", "0820000002", MONDAY, LocalTime.of(10, 15))))
+				.isInstanceOf(DataIntegrityViolationException.class)
+				.hasMessageContaining("booking_no_overlap");
+	}
+
+	@Test
+	@DisplayName("Back-to-back bookings, and bookings over a cancelled one, are allowed")
+	void constraintAllowsBackToBackAndCancelledSlots() {
+		Booking cancelled = new Booking(haircut, "Zanele", "0820000004", MONDAY, LocalTime.of(10, 0));
+		cancelled.cancel();
+		bookings.saveAndFlush(cancelled);
+
+		bookings.saveAndFlush(new Booking(haircut, "Thabo", "0820000001", MONDAY, LocalTime.of(10, 0)));
+		bookings.saveAndFlush(new Booking(haircut, "Sipho", "0820000002", MONDAY, LocalTime.of(10, 35)));
+
+		assertThat(bookings.findBySalonIdAndBookingDateAndStatusOrderByStartTime(haircut.getSalon().getId(), MONDAY,
+				BookingStatus.BOOKED)).hasSize(2);
+	}
+
+	@Test
 	@DisplayName("The database rejects a price range where 'to' is lower than 'from'")
 	void databaseChecksPriceRange() {
 		Long salonId = haircut.getSalon().getId();
