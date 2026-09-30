@@ -1,6 +1,7 @@
 # Salon Booking API
 
 [![CI](https://github.com/afunemma/salon-booking-api/actions/workflows/ci.yml/badge.svg)](https://github.com/afunemma/salon-booking-api/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/afunemma/salon-booking-api/actions/workflows/codeql/badge.svg)](https://github.com/afunemma/salon-booking-api/security/code-scanning)
 
 A REST API that lets clients book appointments at salons (barbers, hair, braids, nails and beauty). It is built with Java and Spring Boot.
 
@@ -123,3 +124,13 @@ salon ──< service_offering
 - [ ] Authentication and roles (owner, staff, client), with each salon's data kept separate
 - [ ] Error handling, logging and an architecture diagram
 - [ ] Live demo deployment
+
+## Security
+
+Security issues can be reported privately; see [SECURITY.md](SECURITY.md). The repository uses secret scanning, Dependabot and CodeQL.
+
+## Copyright
+
+© 2026 afunemma. All rights reserved.
+
+This code is public so it can be reviewed as part of my portfolio. You're welcome to read it, but please don't copy, redistribute or use it commercially without permission.

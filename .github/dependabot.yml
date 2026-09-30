@@ -1,0 +1,19 @@
+# Opens pull requests when newer versions of dependencies are available.
+# Security fixes are opened straight away; routine updates are grouped weekly.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      maven-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
