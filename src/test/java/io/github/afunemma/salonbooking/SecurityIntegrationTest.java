@@ -106,6 +106,24 @@ class SecurityIntegrationTest {
 		}
 
 		@Test
+		@DisplayName("After 5 wrong passwords the account is paused, even for the right password")
+		void repeatedFailuresAreRateLimited() {
+			String email = AuthTestSupport.uniqueEmail();
+			register(email, PASSWORD);
+			for (int i = 0; i < 5; i++) {
+				assertThat(login(email, "wrong-password-" + i)).hasStatus(HttpStatus.UNAUTHORIZED);
+			}
+
+			MvcTestResult paused = login(email, PASSWORD);
+
+			assertThat(paused).hasStatus(HttpStatus.TOO_MANY_REQUESTS)
+				.containsHeader("Retry-After")
+				.bodyJson()
+				.extractingPath("$.title")
+				.isEqualTo("Too many requests");
+		}
+
+		@Test
 		@DisplayName("Logging in returns a Bearer token that works on protected endpoints")
 		void loginReturnsWorkingToken() {
 			String email = AuthTestSupport.uniqueEmail();

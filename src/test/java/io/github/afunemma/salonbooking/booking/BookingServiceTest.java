@@ -1,5 +1,6 @@
 package io.github.afunemma.salonbooking.booking;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -27,6 +28,7 @@ import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonService;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import io.github.afunemma.salonbooking.scheduling.OpeningHours;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 /**
  * Unit tests for the database-error handling in {@link BookingService#book}.
@@ -42,6 +44,8 @@ class BookingServiceTest {
 
 	private final SalonService salonService = mock(SalonService.class);
 
+	private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
+
 	private BookingService bookingService;
 
 	private CreateBookingRequest request;
@@ -51,8 +55,10 @@ class BookingServiceTest {
 		Clock clock = Clock.fixed(FixedClockConfiguration.NOW.toInstant(), FixedClockConfiguration.NOW.getZone());
 		AppProperties properties = new AppProperties(ZoneId.of("Africa/Johannesburg"),
 				new AppProperties.Booking(Duration.ofMinutes(15)),
-				new AppProperties.Security(null, Duration.ofHours(1)));
-		bookingService = new BookingService(bookings, salonService, clock, properties);
+				new AppProperties.Security(null, Duration.ofHours(1),
+						new AppProperties.RateLimit(20, Duration.ofMinutes(1)),
+						new AppProperties.RateLimit(5, Duration.ofMinutes(15))));
+		bookingService = new BookingService(bookings, salonService, clock, properties, meters);
 
 		Salon salon = new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)), 1L);
 		ReflectionTestUtils.setField(salon, "id", 1L);
@@ -72,6 +78,8 @@ class BookingServiceTest {
 
 		assertThatThrownBy(() -> bookingService.book(1L, request)).isInstanceOf(SlotUnavailableException.class)
 			.hasMessageContaining("just booked by someone else");
+		assertThat(meters.get("salon.bookings.rejected").tag("reason", "slot_taken_concurrently").counter().count())
+			.isEqualTo(1);
 	}
 
 	@Test

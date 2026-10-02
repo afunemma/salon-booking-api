@@ -66,6 +66,13 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 			.body(problem(HttpStatus.UNAUTHORIZED, "Unauthorized", "Invalid email or password"));
 	}
 
+	@ExceptionHandler(TooManyRequestsException.class)
+	ResponseEntity<ProblemDetail> handleTooManyRequests(TooManyRequestsException ex) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+			.header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfter().toSeconds()))
+			.body(problem(HttpStatus.TOO_MANY_REQUESTS, "Too many requests", ex.getMessage()));
+	}
+
 	@ExceptionHandler(Exception.class)
 	ProblemDetail handleUnexpected(Exception ex) {
 		log.error("Unexpected error", ex);

@@ -2,6 +2,7 @@ package io.github.afunemma.salonbooking.common;
 
 import java.io.IOException;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -32,7 +33,8 @@ import tools.jackson.databind.json.JsonMapper;
 class SecurityConfig {
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http, JsonMapper jsonMapper) throws Exception {
+	SecurityFilterChain securityFilterChain(HttpSecurity http, JsonMapper jsonMapper,
+			@Value("${management.server.port:-1}") int managementPort) throws Exception {
 		http
 			// CSRF protection is off on purpose. CSRF tricks a browser into
 			// sending a request with cookies it attaches automatically.
@@ -43,18 +45,23 @@ class SecurityConfig {
 			// as a false positive.
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-			.authorizeHttpRequests(
-					requests -> requests.requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login")
-						.permitAll()
-						.requestMatchers(HttpMethod.GET, "/api/v1/salons/*", "/api/v1/salons/*/services",
-								"/api/v1/salons/*/free-slots")
-						.permitAll()
-						.requestMatchers(HttpMethod.POST, "/api/v1/salons/*/bookings")
-						.permitAll()
-						.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/health/**")
-						.permitAll()
-						.anyRequest()
-						.authenticated())
+			.authorizeHttpRequests(requests -> requests
+				// The internal management port (metrics, health) is only reachable from
+				// inside the network and must never be published to the internet.
+				.requestMatchers(request -> request.getLocalPort() == managementPort)
+				.permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login")
+				.permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/v1/salons/*", "/api/v1/salons/*/services",
+						"/api/v1/salons/*/free-slots")
+				.permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/salons/*/bookings")
+				.permitAll()
+				.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/health/**",
+						"/livez", "/readyz")
+				.permitAll()
+				.anyRequest()
+				.authenticated())
 			.oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults())
 				.authenticationEntryPoint((request, response, ex) -> writeProblem(response, jsonMapper,
 						HttpStatus.UNAUTHORIZED, "Unauthorized", "A valid login token is required")))

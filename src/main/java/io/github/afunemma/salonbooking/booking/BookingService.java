@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Locale;
 
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.ServerErrorMessage;
@@ -24,6 +25,8 @@ import io.github.afunemma.salonbooking.salon.SalonService;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import io.github.afunemma.salonbooking.scheduling.SlotFinder;
 import io.github.afunemma.salonbooking.scheduling.TimeRange;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Service
 @Transactional(readOnly = true)
@@ -48,11 +51,20 @@ public class BookingService {
 
 	private final Duration slotStep;
 
-	BookingService(BookingRepository bookings, SalonService salonService, Clock clock, AppProperties properties) {
+	private final MeterRegistry meters;
+
+	private final Counter bookingsMade;
+
+	BookingService(BookingRepository bookings, SalonService salonService, Clock clock, AppProperties properties,
+			MeterRegistry meters) {
 		this.bookings = bookings;
 		this.salonService = salonService;
 		this.clock = clock;
 		this.slotStep = properties.booking().slotStep();
+		this.meters = meters;
+		this.bookingsMade = Counter.builder("salon.bookings.made")
+			.description("Bookings made by clients")
+			.register(meters);
 	}
 
 	public FreeSlotsResponse findFreeSlots(Long salonId, Long serviceId, LocalDate date) {
@@ -78,9 +90,11 @@ public class BookingService {
 		salonService.lockSalon(salonId);
 		ServiceOffering service = salonService.findService(salonId, request.serviceId());
 		if (request.date().isBefore(LocalDate.now(clock))) {
+			countRejected("date_in_past");
 			throw new BookingNotAllowedException("Bookings can't be made for a date in the past");
 		}
 		if (!freeStartTimes(service, request.date()).contains(request.startTime())) {
+			countRejected("slot_unavailable");
 			throw new SlotUnavailableException(
 					request.startTime() + " is not available on " + request.date() + " for " + service.getName());
 		}
@@ -93,6 +107,7 @@ public class BookingService {
 			if (isOverlapViolation(ex)) {
 				// Should be rare: the salon lock normally stops overlaps before they
 				// reach the database.
+				countRejected("slot_taken_concurrently");
 				log.warn("Overlapping booking rejected by database: salon={} date={} start={}", salonId, request.date(),
 						request.startTime());
 				throw new SlotUnavailableException(
@@ -102,6 +117,7 @@ public class BookingService {
 		}
 		// Client name and phone number are personal information (POPIA), so they are not
 		// logged.
+		bookingsMade.increment();
 		log.info("Booking created: id={} salon={} service={} date={} start={}", booking.getId(), salonId,
 				service.getId(), booking.getBookingDate(), booking.getStartTime());
 		return BookingResponse.from(booking);
@@ -123,6 +139,7 @@ public class BookingService {
 	public BookingResponse cancel(Long salonId, Long bookingId, Long userId) {
 		Booking booking = findOwnedBooking(salonId, bookingId, userId);
 		booking.cancel();
+		countStatusChange(booking);
 		log.info("Booking cancelled: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
 	}
@@ -131,6 +148,7 @@ public class BookingService {
 	public BookingResponse markCompleted(Long salonId, Long bookingId, Long userId) {
 		Booking booking = findOwnedBooking(salonId, bookingId, userId);
 		booking.markCompleted();
+		countStatusChange(booking);
 		log.info("Booking completed: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
 	}
@@ -139,8 +157,21 @@ public class BookingService {
 	public BookingResponse markNoShow(Long salonId, Long bookingId, Long userId) {
 		Booking booking = findOwnedBooking(salonId, bookingId, userId);
 		booking.markNoShow();
+		countStatusChange(booking);
 		log.info("Booking marked as no-show: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
+	}
+
+	private void countRejected(String reason) {
+		meters.counter("salon.bookings.rejected", "reason", reason).increment();
+	}
+
+	/**
+	 * Cancellations, completions and no-shows, e.g. to track the no-show rate over time.
+	 */
+	private void countStatusChange(Booking booking) {
+		meters.counter("salon.bookings.status.changed", "status", booking.getStatus().name().toLowerCase(Locale.ROOT))
+			.increment();
 	}
 
 	private List<LocalTime> freeStartTimes(ServiceOffering service, LocalDate date) {
