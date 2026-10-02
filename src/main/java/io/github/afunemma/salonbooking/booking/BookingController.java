@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import io.github.afunemma.salonbooking.booking.BookingDtos.BookingResponse;
 import io.github.afunemma.salonbooking.booking.BookingDtos.CreateBookingRequest;
@@ -21,7 +22,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/salons/{salonId}")
+@RequestMapping("/api/v1/salons/{salonId}")
 @Tag(name = "Bookings", description = "Find free times, book them and manage the day")
 class BookingController {
 
@@ -42,8 +43,9 @@ class BookingController {
 	@Operation(summary = "Book a free slot", description = "Returns 409 Conflict if the slot is no longer free.")
 	ResponseEntity<BookingResponse> book(@PathVariable Long salonId, @Valid @RequestBody CreateBookingRequest request) {
 		BookingResponse booking = bookingService.book(salonId, request);
-		return ResponseEntity.created(URI.create("/api/salons/" + salonId + "/bookings/" + booking.id()))
-				.body(booking);
+		URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(booking.id())
+				.toUri();
+		return ResponseEntity.created(location).body(booking);
 	}
 
 	@GetMapping("/bookings")

@@ -37,13 +37,13 @@ class BookingApiIntegrationTest {
 
 	@BeforeEach
 	void createSalonWithHaircut() {
-		MvcTestResult salon = post("/api/salons", """
+		MvcTestResult salon = post("/api/v1/salons", """
 				{"name": "Sipho's Cuts", "opensAt": "09:00", "closesAt": "20:00"}
 				""");
 		assertThat(salon).hasStatus(HttpStatus.CREATED);
 		salonId = idOf(salon);
 
-		MvcTestResult haircut = post("/api/salons/" + salonId + "/services", """
+		MvcTestResult haircut = post("/api/v1/salons/" + salonId + "/services", """
 				{"name": "Haircut", "durationMinutes": 35, "priceFromCents": 5000, "priceToCents": 10000}
 				""");
 		assertThat(haircut).hasStatus(HttpStatus.CREATED);
@@ -65,7 +65,7 @@ class BookingApiIntegrationTest {
 		// 10:00 is taken, and 10:15 would overlap it
 		assertThat(freeSlots(TOMORROW)).bodyJson().extractingPath("$.startTimes").asArray()
 				.doesNotContain("10:00:00", "10:15:00", "10:30:00").contains("10:45:00");
-		assertThat(mvc.get().uri("/api/salons/{id}/bookings?date={date}", salonId, TOMORROW))
+		assertThat(mvc.get().uri("/api/v1/salons/{id}/bookings?date={date}", salonId, TOMORROW))
 				.hasStatusOk().bodyJson().extractingPath("$[0].clientName").isEqualTo("Thabo");
 	}
 
@@ -84,7 +84,7 @@ class BookingApiIntegrationTest {
 	@DisplayName("Cancelling frees the slot again, and a cancelled booking can't be cancelled twice")
 	void cancelFreesSlot() {
 		long bookingId = idOf(book(TOMORROW, "10:00"));
-		String cancelUri = "/api/salons/" + salonId + "/bookings/" + bookingId + "/cancel";
+		String cancelUri = "/api/v1/salons/" + salonId + "/bookings/" + bookingId + "/cancel";
 
 		assertThat(mvc.post().uri(cancelUri)).hasStatusOk()
 				.bodyJson().extractingPath("$.status").isEqualTo("CANCELLED");
@@ -115,7 +115,7 @@ class BookingApiIntegrationTest {
 	@Test
 	@DisplayName("Invalid input returns 400 listing each bad field")
 	void validationErrorsListFields() {
-		MvcTestResult result = post("/api/salons/" + salonId + "/bookings", """
+		MvcTestResult result = post("/api/v1/salons/" + salonId + "/bookings", """
 				{"serviceId": %d, "clientName": "", "clientPhone": "call me", "date": "%s", "startTime": "10:00"}
 				""".formatted(haircutId, TOMORROW));
 
@@ -125,33 +125,50 @@ class BookingApiIntegrationTest {
 	}
 
 	@Test
-	@DisplayName("A salon that closes before it opens is rejected")
+	@DisplayName("A salon that closes before it opens is rejected with a clear message")
 	void invalidOpeningHoursAreRejected() {
-		assertThat(post("/api/salons", """
+		assertThat(post("/api/v1/salons", """
 				{"name": "Backwards", "opensAt": "20:00", "closesAt": "09:00"}
-				""")).hasStatus(HttpStatus.BAD_REQUEST);
+				""")).hasStatus(HttpStatus.BAD_REQUEST)
+				.bodyJson().extractingPath("$.errors.openingHoursValid").isEqualTo("opensAt must be before closesAt");
+	}
+
+	@Test
+	@DisplayName("A price range that goes backwards is rejected with a clear message")
+	void invalidPriceRangeIsRejected() {
+		assertThat(post("/api/v1/salons/" + salonId + "/services", """
+				{"name": "Fade", "durationMinutes": 45, "priceFromCents": 15000, "priceToCents": 5000}
+				""")).hasStatus(HttpStatus.BAD_REQUEST)
+				.bodyJson().extractingPath("$.errors.priceRangeValid").asString().contains("priceToCents");
+	}
+
+	@Test
+	@DisplayName("New resources get a full, versioned Location URL")
+	void locationHeaderIsVersionedUrl() {
+		assertThat(book(TOMORROW, "11:00").getResponse().getHeader("Location"))
+				.matches("http://localhost/api/v1/salons/" + salonId + "/bookings/\\d+");
 	}
 
 	@Test
 	@DisplayName("Unknown salons return 404, and one salon can't book another salon's service")
 	void notFound() {
-		assertThat(mvc.get().uri("/api/salons/999999")).hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(mvc.get().uri("/api/v1/salons/999999")).hasStatus(HttpStatus.NOT_FOUND);
 
-		long otherSalonId = idOf(post("/api/salons", """
+		long otherSalonId = idOf(post("/api/v1/salons", """
 				{"name": "Other Salon", "opensAt": "09:00", "closesAt": "17:00"}
 				"""));
-		MvcTestResult result = post("/api/salons/" + otherSalonId + "/bookings", bookingJson(TOMORROW, "10:00"));
+		MvcTestResult result = post("/api/v1/salons/" + otherSalonId + "/bookings", bookingJson(TOMORROW, "10:00"));
 
 		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
 	}
 
 	private MvcTestResult freeSlots(String date) {
-		return mvc.get().uri("/api/salons/{id}/free-slots?serviceId={service}&date={date}", salonId, haircutId, date)
+		return mvc.get().uri("/api/v1/salons/{id}/free-slots?serviceId={service}&date={date}", salonId, haircutId, date)
 				.exchange();
 	}
 
 	private MvcTestResult book(String date, String startTime) {
-		return post("/api/salons/" + salonId + "/bookings", bookingJson(date, startTime));
+		return post("/api/v1/salons/" + salonId + "/bookings", bookingJson(date, startTime));
 	}
 
 	private String bookingJson(String date, String startTime) {

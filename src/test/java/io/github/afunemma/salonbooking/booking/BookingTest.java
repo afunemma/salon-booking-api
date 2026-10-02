@@ -31,6 +31,6 @@ class BookingTest {
 		booking.markNoShow();
 
 		assertThat(booking.getStatus()).isEqualTo(BookingStatus.NO_SHOW);
-		assertThatThrownBy(booking::cancel).isInstanceOf(IllegalStateException.class);
+		assertThatThrownBy(booking::cancel).isInstanceOf(InvalidBookingStateException.class);
 	}
 }

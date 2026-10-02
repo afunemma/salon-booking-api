@@ -3,6 +3,8 @@ package io.github.afunemma.salonbooking.salon;
 import java.time.Duration;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -28,7 +30,7 @@ public class ServiceOffering {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private @Nullable Long id;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "salon_id")
@@ -40,15 +42,15 @@ public class ServiceOffering {
 	@Column(nullable = false)
 	private int durationMinutes;
 
-	private Integer priceFromCents;
+	private @Nullable Integer priceFromCents;
 
-	private Integer priceToCents;
+	private @Nullable Integer priceToCents;
 
 	protected ServiceOffering() {
 	}
 
-	public ServiceOffering(Salon salon, String name, Duration duration, Integer priceFromCents,
-			Integer priceToCents) {
+	public ServiceOffering(Salon salon, String name, Duration duration, @Nullable Integer priceFromCents,
+			@Nullable Integer priceToCents) {
 		this.salon = Objects.requireNonNull(salon, "salon must not be null");
 		this.name = Objects.requireNonNull(name, "name must not be null");
 		if (duration.toMinutes() < 1) {
@@ -62,8 +64,9 @@ public class ServiceOffering {
 		this.priceToCents = priceToCents;
 	}
 
+	/** Only available once saved; the database assigns the id. */
 	public Long getId() {
-		return id;
+		return Objects.requireNonNull(id, "not saved yet");
 	}
 
 	public Salon getSalon() {
@@ -78,11 +81,11 @@ public class ServiceOffering {
 		return Duration.ofMinutes(durationMinutes);
 	}
 
-	public Integer getPriceFromCents() {
+	public @Nullable Integer getPriceFromCents() {
 		return priceFromCents;
 	}
 
-	public Integer getPriceToCents() {
+	public @Nullable Integer getPriceToCents() {
 		return priceToCents;
 	}
 }

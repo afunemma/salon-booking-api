@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Objects;
 
+import org.jspecify.annotations.Nullable;
+
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import jakarta.persistence.Column;
@@ -31,7 +33,7 @@ public class Booking {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private @Nullable Long id;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "salon_id")
@@ -97,13 +99,14 @@ public class Booking {
 
 	private void changeStatus(BookingStatus newStatus) {
 		if (status != BookingStatus.BOOKED) {
-			throw new IllegalStateException("Booking is already " + status);
+			throw new InvalidBookingStateException("Booking " + id + " is already " + status);
 		}
 		status = newStatus;
 	}
 
+	/** Only available once saved; the database assigns the id. */
 	public Long getId() {
-		return id;
+		return Objects.requireNonNull(id, "not saved yet");
 	}
 
 	public Salon getSalon() {
