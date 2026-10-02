@@ -34,8 +34,13 @@ class SecurityConfig {
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, JsonMapper jsonMapper) throws Exception {
 		http
-			// No cookies or sessions: every request carries its own token, so CSRF
-			// attacks don't apply.
+			// CSRF protection is off on purpose. CSRF tricks a browser into
+			// sending a request with cookies it attaches automatically.
+			// This API uses no cookies or sessions: the token travels in the
+			// Authorization header, which browsers never add on their own.
+			// If cookie-based login is ever added, turn CSRF back on.
+			// See ADR-0006. CodeQL flags this line; the alert is dismissed
+			// as a false positive.
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(

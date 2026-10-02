@@ -37,6 +37,7 @@ Customer research showed the barber's clients book by WhatsApp, phone calls and 
 - **Logout and revocation:** no server-side sessions makes the app easy to scale, but a token can't be revoked before it expires. The short 1-hour lifetime limits the damage. Refresh tokens or a deny-list would come later if needed.
 - **Registration reveals existing emails:** `409 Email already registered` tells a caller an email exists. This trade-off is common, and could be removed with email verification.
 - **Rotating the signing key** logs everyone out.
+- **CSRF protection is disabled.** CSRF relies on browsers attaching credentials automatically, which they do for cookies but never for the `Authorization` header. This API uses no cookies or sessions, so there is nothing to forge. CodeQL's `java/spring-disabled-csrf-protection` alert is dismissed as a false positive for this reason. **If cookie-based login is ever added, CSRF protection must be re-enabled.**
 - **Clients can't cancel their own bookings yet.** A future change could send them a cancellation link containing a single-use token.
 - **No brute-force protection on login yet** (rate limiting). This is planned with the deployment step.
 
