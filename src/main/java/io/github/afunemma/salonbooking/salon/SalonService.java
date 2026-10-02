@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,11 +32,15 @@ public class SalonService {
 	}
 
 	@Transactional
-	public SalonResponse createSalon(CreateSalonRequest request) {
+	public SalonResponse createSalon(CreateSalonRequest request, Long ownerId) {
 		OpeningHours hours = new OpeningHours(request.opensAt(), request.closesAt());
-		Salon salon = salons.save(new Salon(request.name(), hours));
-		log.info("Salon created: id={}", salon.getId());
+		Salon salon = salons.save(new Salon(request.name(), hours, ownerId));
+		log.info("Salon created: id={} owner={}", salon.getId(), ownerId);
 		return SalonResponse.from(salon);
+	}
+
+	public List<SalonResponse> listOwnedSalons(Long ownerId) {
+		return salons.findByOwnerIdOrderByName(ownerId).stream().map(SalonResponse::from).toList();
 	}
 
 	public SalonResponse getSalon(Long salonId) {
@@ -43,8 +48,8 @@ public class SalonService {
 	}
 
 	@Transactional
-	public ServiceResponse addService(Long salonId, CreateServiceRequest request) {
-		Salon salon = findSalon(salonId);
+	public ServiceResponse addService(Long salonId, Long userId, CreateServiceRequest request) {
+		Salon salon = findOwnedSalon(salonId, userId);
 		ServiceOffering service = new ServiceOffering(salon, request.name(),
 				Duration.ofMinutes(request.durationMinutes()), request.priceFromCents(), request.priceToCents());
 		services.save(service);
@@ -60,6 +65,20 @@ public class SalonService {
 
 	public Salon findSalon(Long salonId) {
 		return salons.findById(salonId).orElseThrow(() -> new NotFoundException("Salon " + salonId + " not found"));
+	}
+
+	/**
+	 * Finds a salon and checks the user owns it. Every owner-only operation goes through
+	 * here, so one owner can never see or change another owner's salon.
+	 * @throws AccessDeniedException (HTTP 403) if the user doesn't own the salon
+	 */
+	public Salon findOwnedSalon(Long salonId, Long userId) {
+		Salon salon = findSalon(salonId);
+		if (!salon.isOwnedBy(userId)) {
+			log.warn("Access denied: user={} tried to manage salon={}", userId, salonId);
+			throw new AccessDeniedException("User " + userId + " does not own salon " + salonId);
+		}
+		return salon;
 	}
 
 	/**

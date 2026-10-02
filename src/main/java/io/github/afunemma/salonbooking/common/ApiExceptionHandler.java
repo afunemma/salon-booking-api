@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,6 +50,20 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(ConflictException.class)
 	ProblemDetail handleConflict(ConflictException ex) {
 		return problem(HttpStatus.CONFLICT, ex.getTitle(), ex.getMessage());
+	}
+
+	/** A logged-in user tried to manage something they don't own. */
+	@ExceptionHandler(AccessDeniedException.class)
+	ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+		return problem(HttpStatus.FORBIDDEN, "Forbidden", "You don't have access to this resource");
+	}
+
+	/** Wrong email or password. The message is deliberately the same for both. */
+	@ExceptionHandler(AuthenticationException.class)
+	ResponseEntity<ProblemDetail> handleAuthentication(AuthenticationException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+			.header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+			.body(problem(HttpStatus.UNAUTHORIZED, "Unauthorized", "Invalid email or password"));
 	}
 
 	@ExceptionHandler(Exception.class)

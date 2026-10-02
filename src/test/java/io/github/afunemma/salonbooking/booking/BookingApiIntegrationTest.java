@@ -1,6 +1,7 @@
 package io.github.afunemma.salonbooking.booking;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
+import io.github.afunemma.salonbooking.AuthTestSupport;
 import io.github.afunemma.salonbooking.FixedClockConfiguration;
 import io.github.afunemma.salonbooking.TestcontainersConfiguration;
 
@@ -33,12 +35,16 @@ class BookingApiIntegrationTest {
 	@Autowired
 	private MockMvcTester mvc;
 
+	/** Authorization header for the salon's owner. */
+	private String owner;
+
 	private long salonId;
 
 	private long haircutId;
 
 	@BeforeEach
 	void createSalonWithHaircut() {
+		owner = AuthTestSupport.registerAndLogin(mvc);
 		MvcTestResult salon = post("/api/v1/salons", """
 				{"name": "Sipho's Cuts", "opensAt": "09:00", "closesAt": "20:00"}
 				""");
@@ -72,7 +78,9 @@ class BookingApiIntegrationTest {
 			.asArray()
 			.doesNotContain("10:00:00", "10:15:00", "10:30:00")
 			.contains("10:45:00");
-		assertThat(mvc.get().uri("/api/v1/salons/{id}/bookings?date={date}", salonId, TOMORROW)).hasStatusOk()
+		assertThat(mvc.get()
+			.uri("/api/v1/salons/{id}/bookings?date={date}", salonId, TOMORROW)
+			.header(AUTHORIZATION, owner)).hasStatusOk()
 			.bodyJson()
 			.extractingPath("$[0].clientName")
 			.isEqualTo("Thabo");
@@ -97,12 +105,12 @@ class BookingApiIntegrationTest {
 		long bookingId = idOf(book(TOMORROW, "10:00"));
 		String cancelUri = "/api/v1/salons/" + salonId + "/bookings/" + bookingId + "/cancel";
 
-		assertThat(mvc.post().uri(cancelUri)).hasStatusOk()
+		assertThat(mvc.post().uri(cancelUri).header(AUTHORIZATION, owner)).hasStatusOk()
 			.bodyJson()
 			.extractingPath("$.status")
 			.isEqualTo("CANCELLED");
 		assertThat(freeSlots(TOMORROW)).bodyJson().extractingPath("$.startTimes").asArray().contains("10:00:00");
-		assertThat(mvc.post().uri(cancelUri)).hasStatus(HttpStatus.CONFLICT);
+		assertThat(mvc.post().uri(cancelUri).header(AUTHORIZATION, owner)).hasStatus(HttpStatus.CONFLICT);
 	}
 
 	@Test
@@ -112,15 +120,16 @@ class BookingApiIntegrationTest {
 		long missed = idOf(book(TOMORROW, "11:00"));
 		String bookings = "/api/v1/salons/" + salonId + "/bookings/";
 
-		assertThat(mvc.post().uri(bookings + done + "/complete")).hasStatusOk()
+		assertThat(mvc.post().uri(bookings + done + "/complete").header(AUTHORIZATION, owner)).hasStatusOk()
 			.bodyJson()
 			.extractingPath("$.status")
 			.isEqualTo("COMPLETED");
-		assertThat(mvc.post().uri(bookings + missed + "/no-show")).hasStatusOk()
+		assertThat(mvc.post().uri(bookings + missed + "/no-show").header(AUTHORIZATION, owner)).hasStatusOk()
 			.bodyJson()
 			.extractingPath("$.status")
 			.isEqualTo("NO_SHOW");
-		assertThat(mvc.post().uri(bookings + missed + "/complete")).hasStatus(HttpStatus.CONFLICT)
+		assertThat(mvc.post().uri(bookings + missed + "/complete").header(AUTHORIZATION, owner))
+			.hasStatus(HttpStatus.CONFLICT)
 			.bodyJson()
 			.extractingPath("$.title")
 			.isEqualTo("Invalid booking state");
@@ -165,7 +174,7 @@ class BookingApiIntegrationTest {
 	@Test
 	@DisplayName("Invalid input returns 400 listing each bad field")
 	void validationErrorsListFields() {
-		MvcTestResult result = post("/api/v1/salons/" + salonId + "/bookings", """
+		MvcTestResult result = postAnonymous("/api/v1/salons/" + salonId + "/bookings", """
 				{"serviceId": %d, "clientName": "", "clientPhone": "call me", "date": "%s", "startTime": "10:00"}
 				""".formatted(haircutId, TOMORROW));
 
@@ -212,7 +221,8 @@ class BookingApiIntegrationTest {
 		long otherSalonId = idOf(post("/api/v1/salons", """
 				{"name": "Other Salon", "opensAt": "09:00", "closesAt": "17:00"}
 				"""));
-		MvcTestResult result = post("/api/v1/salons/" + otherSalonId + "/bookings", bookingJson(TOMORROW, "10:00"));
+		MvcTestResult result = postAnonymous("/api/v1/salons/" + otherSalonId + "/bookings",
+				bookingJson(TOMORROW, "10:00"));
 
 		assertThat(result).hasStatus(HttpStatus.NOT_FOUND);
 	}
@@ -224,7 +234,7 @@ class BookingApiIntegrationTest {
 	}
 
 	private MvcTestResult book(String date, String startTime) {
-		return post("/api/v1/salons/" + salonId + "/bookings", bookingJson(date, startTime));
+		return postAnonymous("/api/v1/salons/" + salonId + "/bookings", bookingJson(date, startTime));
 	}
 
 	private String bookingJson(String date, String startTime) {
@@ -233,8 +243,19 @@ class BookingApiIntegrationTest {
 				""".formatted(haircutId, date, startTime);
 	}
 
+	/** As the salon owner. */
 	private MvcTestResult post(String uri, String json) {
-		return mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
+		return mvc.post()
+			.uri(uri)
+			.header(AUTHORIZATION, owner)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(json)
+			.exchange();
+	}
+
+	/** As a client without an account. */
+	private MvcTestResult postAnonymous(String uri, String json) {
+		return AuthTestSupport.postJson(mvc, uri, json);
 	}
 
 	/** Reads the new resource's id from the Location header, e.g. /api/salons/42 → 42. */

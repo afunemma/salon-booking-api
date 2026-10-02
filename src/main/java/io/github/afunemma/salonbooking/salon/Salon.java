@@ -30,14 +30,22 @@ public class Salon {
 	@Column(nullable = false)
 	private LocalTime closesAt;
 
+	/**
+	 * The owner's user id. Stored as an id rather than a reference to the account entity,
+	 * so the salon package doesn't depend on the account package.
+	 */
+	@Column(nullable = false, updatable = false)
+	private Long ownerId;
+
 	/** Required by JPA; use the public constructor in application code. */
 	protected Salon() {
 	}
 
-	public Salon(String name, OpeningHours hours) {
-		this.name = name;
+	public Salon(String name, OpeningHours hours, Long ownerId) {
+		this.name = Objects.requireNonNull(name, "name must not be null");
 		this.opensAt = hours.open();
 		this.closesAt = hours.close();
+		this.ownerId = Objects.requireNonNull(ownerId, "ownerId must not be null");
 	}
 
 	/** Only available once saved; the database assigns the id. */
@@ -51,6 +59,14 @@ public class Salon {
 
 	public OpeningHours getOpeningHours() {
 		return new OpeningHours(opensAt, closesAt);
+	}
+
+	public Long getOwnerId() {
+		return ownerId;
+	}
+
+	public boolean isOwnedBy(Long userId) {
+		return ownerId.equals(userId);
 	}
 
 }
