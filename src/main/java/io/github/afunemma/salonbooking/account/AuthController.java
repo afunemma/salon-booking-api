@@ -13,6 +13,7 @@ import io.github.afunemma.salonbooking.account.AuthDtos.TokenResponse;
 import io.github.afunemma.salonbooking.account.AuthDtos.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -35,9 +36,10 @@ class AuthController {
 
 	@PostMapping("/login")
 	@Operation(summary = "Log in and get a token",
-			description = "Send the token as 'Authorization: Bearer <token>'. In Swagger, use the Authorize button.")
-	TokenResponse login(@Valid @RequestBody LoginRequest request) {
-		return authService.login(request);
+			description = "Send the token as 'Authorization: Bearer <token>'. In Swagger, use the Authorize button. "
+					+ "Returns 429 Too Many Requests after repeated failures.")
+	TokenResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+		return authService.login(request, httpRequest.getRemoteAddr());
 	}
 
 }

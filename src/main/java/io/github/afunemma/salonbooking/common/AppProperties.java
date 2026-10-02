@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -32,8 +33,16 @@ public record AppProperties(@NotNull ZoneId timeZone, @Valid @NotNull Booking bo
 	 * file. If empty, a random key is generated at startup, so tokens stop working after
 	 * a restart.
 	 * @param tokenLifetime how long a login token stays valid
+	 * @param loginAttemptsPerIp all login attempts allowed from one IP address
+	 * @param failedLoginsPerEmail failed login attempts allowed for one email
 	 */
 	public record Security(@Nullable @Size(min = 32) String jwtSecret,
-			@NotNull @DurationMin(minutes = 1) Duration tokenLifetime) {
+			@NotNull @DurationMin(minutes = 1) Duration tokenLifetime, @Valid @NotNull RateLimit loginAttemptsPerIp,
+			@Valid @NotNull RateLimit failedLoginsPerEmail) {
 	}
+
+	/** At most {@code attempts} within {@code window}, e.g. 5 per 15 minutes. */
+	public record RateLimit(@Min(1) int attempts, @NotNull @DurationMin(seconds = 1) Duration window) {
+	}
+
 }

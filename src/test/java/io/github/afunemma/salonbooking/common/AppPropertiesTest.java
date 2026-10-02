@@ -17,7 +17,9 @@ class AppPropertiesTest {
 	private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(Config.class);
 
 	private static final String[] VALID = { "app.time-zone=Africa/Johannesburg", "app.booking.slot-step=15m",
-			"app.security.token-lifetime=1h" };
+			"app.security.token-lifetime=1h", "app.security.login-attempts-per-ip.attempts=20",
+			"app.security.login-attempts-per-ip.window=1m", "app.security.failed-logins-per-email.attempts=5",
+			"app.security.failed-logins-per-email.window=15m" };
 
 	@Test
 	void bindsValidSettings() {
@@ -34,6 +36,13 @@ class AppPropertiesTest {
 	void rejectsSlotStepShorterThanAMinute() {
 		runner.withPropertyValues(VALID)
 			.withPropertyValues("app.booking.slot-step=0m")
+			.run(context -> assertThat(context).hasFailed());
+	}
+
+	@Test
+	void rejectsRateLimitOfZeroAttempts() {
+		runner.withPropertyValues(VALID)
+			.withPropertyValues("app.security.failed-logins-per-email.attempts=0")
 			.run(context -> assertThat(context).hasFailed());
 	}
 

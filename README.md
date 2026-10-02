@@ -29,7 +29,117 @@ The goal is to let clients book themselves and to cut no-shows, without adding a
 | Build | Maven (wrapper included) |
 | Testing | JUnit 5, AssertJ, Mockito, Testcontainers (real PostgreSQL in Docker) |
 | Quality | ArchUnit (architecture rules), JaCoCo (coverage minimums), Spring Java Format, CodeQL |
+| Monitoring | Spring Boot Actuator, Micrometer, Prometheus |
 | CI | GitHub Actions: builds and tests every push |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    client(["Client<br/>(no account)"])
+    owner(["Salon owner<br/>(logged in)"])
+    monitoring(["Monitoring<br/>(Prometheus)"])
+
+    subgraph app["Spring Boot app"]
+        direction LR
+        security["Spring Security<br/>JWT check · login rate limit"]
+        controllers["Controllers<br/>REST /api/v1 · validation"]
+        services["Services<br/>business rules · ownership checks<br/>salon lock · metrics"]
+        scheduling["SlotFinder<br/>pure Java"]
+        repositories["Repositories<br/>Spring Data JPA"]
+        actuator["Actuator :9090<br/>internal only"]
+    end
+
+    db[("PostgreSQL<br/>Flyway migrations<br/>exclusion constraint")]
+
+    client -- "free slots, book" --> security
+    owner -- "Bearer token" --> security
+    security --> controllers --> services
+    services --> scheduling
+    services --> repositories --> db
+    monitoring -. scrape .-> actuator
+```
+
+Requests pass through Spring Security, then controllers (HTTP and validation), services (business rules, ownership checks and transactions) and repositories (database). The slot-finding logic is plain Java with no framework dependencies.
+
+### Package dependencies
+
+Dependencies point one way only, enforced by [`ArchitectureTest`](src/test/java/io/github/afunemma/salonbooking/ArchitectureTest.java) ([ADR-0005](docs/adr/0005-package-by-feature-with-enforced-boundaries.md)).
+
+```mermaid
+flowchart LR
+    booking --> salon --> scheduling
+    booking --> scheduling
+    account --> common
+    booking --> common
+    salon --> common
+```
+
+### Booking a slot
+
+How a booking stays safe when two clients press "Book" at the same moment ([ADR-0004](docs/adr/0004-prevent-double-bookings-with-lock-and-constraint.md)):
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as BookingService
+    participant DB as PostgreSQL
+
+    C->>S: POST /bookings (10:00)
+    S->>DB: SELECT salon ... FOR UPDATE
+    Note over S,DB: Other bookings for this salon wait here
+    S->>DB: Load the day's bookings
+    S->>S: SlotFinder: is 10:00 still free?
+    alt Free
+        S->>DB: INSERT booking
+        Note over DB: Exclusion constraint: final check for overlaps
+        S-->>C: 201 Created
+    else Taken
+        S-->>C: 409 Slot unavailable
+    end
+```
+
+### Data model
+
+```mermaid
+erDiagram
+    app_user ||--o{ salon : owns
+    salon ||--o{ service_offering : offers
+    salon ||--o{ booking : has
+    service_offering ||--o{ booking : "booked as"
+
+    app_user {
+        bigint id PK
+        varchar email "unique, case-insensitive"
+        varchar password_hash "BCrypt"
+    }
+    salon {
+        bigint id PK
+        bigint owner_id FK
+        varchar name
+        time opens_at
+        time closes_at
+    }
+    service_offering {
+        bigint id PK
+        bigint salon_id FK
+        varchar name
+        int duration_minutes
+        int price_from_cents "optional"
+        int price_to_cents "optional"
+    }
+    booking {
+        bigint id PK
+        bigint salon_id FK
+        bigint service_offering_id FK
+        varchar client_name
+        varchar client_phone
+        date booking_date
+        time start_time
+        time end_time
+        varchar status "BOOKED, CANCELLED, COMPLETED, NO_SHOW"
+    }
+```
 
 ## Run it
 
@@ -48,7 +158,8 @@ Locally, login tokens are signed with a random key generated at startup, so you 
 If an older local database fails a new migration, reset it with `docker compose down -v`. This deletes local data only.
 
 - Swagger UI (try every endpoint in the browser): <http://localhost:8080/swagger-ui.html>
-- Health check: <http://localhost:8080/actuator/health>
+- Health checks: <http://localhost:8080/livez> and <http://localhost:8080/readyz>
+- Metrics (internal port, Prometheus format): <http://localhost:9090/actuator/prometheus>
 
 ## API
 
@@ -149,21 +260,6 @@ WHERE (status = 'BOOKED')
 
 I also tried the constraint alone. It stopped the double bookings, but under heavy contention PostgreSQL reported deadlocks between the waiting inserts, and clients got server errors. Taking the lock first keeps the requests in order and avoids the deadlocks. Locking per salon is fine at salon scale, where a salon handles a few bookings a minute, not thousands a second.
 
-## Roadmap
-
-- [x] Slot-finding logic with unit tests
-- [x] CI pipeline with GitHub Actions
-- [x] PostgreSQL + Flyway migrations, running in Docker, with Testcontainers tests
-- [x] REST API for salons, services, free slots and bookings, with OpenAPI docs
-- [x] Prevent double bookings when two clients book the same slot at once (lock + exclusion constraint, with a concurrency test)
-- [x] Owner login (JWT), with each salon's data visible only to its owner. Clients book without an account
-- [ ] Clients cancel their own booking from a link
-- [ ] Staff members with their own schedules
-- [x] Specific error types, structured logging without personal data, typed config (PR #1)
-- [x] Architecture tests, coverage minimums, formatting and ADRs (PR #2)
-- [ ] Architecture diagram, metrics and login rate limiting
-- [ ] Live demo deployment
-
 ## Security design
 
 Full reasoning: [ADR-0006](docs/adr/0006-stateless-jwt-auth-for-owners-only.md).
@@ -173,8 +269,22 @@ Full reasoning: [ADR-0006](docs/adr/0006-stateless-jwt-auth-for-owners-only.md).
 - **Passwords:** hashed with BCrypt and 12 to 72 characters long. They are never stored, returned or logged.
 - **Login gives nothing away:** a wrong password and an unknown email return an identical response in the same time (a dummy hash check), so the login form can't be used to discover registered emails.
 - **The signing key comes from the environment,** never from a committed file.
+- **Login rate limiting** ([ADR-0007](docs/adr/0007-in-memory-login-rate-limiting.md)): at most 20 attempts per minute per IP address, and 5 failed attempts per email before that email is paused. A successful login resets the count. Blocked attempts get `429 Too Many Requests` with a `Retry-After` header.
 - **Errors:** security errors (`401`, `403`) use the same Problem Details format as every other error.
 - **Tests:** [`SecurityIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/SecurityIntegrationTest.java) covers missing, garbage, expired and forged tokens, password hashing, and one owner trying to read or change another owner's salon.
+
+## Monitoring
+
+Business metrics are exported in Prometheus format on an **internal port (9090)** that is never published to the internet:
+
+| Metric | Why it matters |
+|---|---|
+| `salon_bookings_made_total` | Booking volume |
+| `salon_bookings_rejected_total{reason}` | Clients who couldn't get the slot they wanted (`slot_unavailable`, `slot_taken_concurrently`, `date_in_past`) |
+| `salon_bookings_status_changed_total{status}` | Cancellations, completions and **no-shows**, the problem salons said costs them the most |
+| `salon_auth_logins_total{result}` | `success`, `failure`, `rate_limited`. A spike in failures or rate limits is a sign of password guessing |
+
+Liveness and readiness checks (`/livez`, `/readyz`) are public on the main port for the hosting platform.
 
 ## Engineering practices
 
@@ -188,6 +298,21 @@ Full reasoning: [ADR-0006](docs/adr/0006-stateless-jwt-auth-for-owners-only.md).
 - **Consistent formatting.** Spring Java Format checks every file, and CI fails on unformatted code.
 - **Decisions are written down.** [Architecture Decision Records](docs/adr/README.md) explain the key choices, the trade-offs and the rejected alternatives.
 - **Pull requests.** Changes go through a branch and a pull request, where CI, CodeQL and the checks above must pass before merging.
+
+## Roadmap
+
+- [x] Slot-finding logic with unit tests
+- [x] CI pipeline with GitHub Actions
+- [x] PostgreSQL + Flyway migrations, running in Docker, with Testcontainers tests
+- [x] REST API for salons, services, free slots and bookings, with OpenAPI docs
+- [x] Prevent double bookings when two clients book the same slot at once (lock + exclusion constraint, with a concurrency test)
+- [x] Owner login (JWT), with each salon's data visible only to its owner. Clients book without an account
+- [ ] Clients cancel their own booking from a link
+- [ ] Staff members with their own schedules
+- [x] Specific error types, structured logging without personal data, typed config (PR #1)
+- [x] Architecture tests, coverage minimums, formatting and ADRs (PR #2)
+- [x] Architecture diagrams, business metrics (Prometheus) and login rate limiting
+- [ ] Live demo deployment
 
 ## Security
 
