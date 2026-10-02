@@ -11,10 +11,13 @@ import org.junit.jupiter.api.Test;
 
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
+import io.github.afunemma.salonbooking.scheduling.OpeningHours;
+import io.github.afunemma.salonbooking.scheduling.TimeRange;
 
 class BookingTest {
 
 	private final Salon salon = new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)));
+
 	private final ServiceOffering haircut = new ServiceOffering(salon, "Haircut", Duration.ofMinutes(35), null, null);
 
 	@Test
@@ -33,4 +36,5 @@ class BookingTest {
 		assertThat(booking.getStatus()).isEqualTo(BookingStatus.NO_SHOW);
 		assertThatThrownBy(booking::cancel).isInstanceOf(InvalidBookingStateException.class);
 	}
+
 }

@@ -18,11 +18,11 @@ import jakarta.persistence.Table;
 /**
  * Something a salon offers, such as "Haircut" (35 min) or "Box braids" (5 hours).
  * <p>
- * Named {@code ServiceOffering} rather than {@code Service} so it is not confused
- * with Spring's {@code @Service} annotation.
+ * Named {@code ServiceOffering} rather than {@code Service} so it is not confused with
+ * Spring's {@code @Service} annotation.
  * <p>
- * Prices are stored in cents to avoid floating-point rounding errors. Many salons
- * quote a range ("R50 to R100") rather than a fixed price, so both ends are optional.
+ * Prices are stored in cents to avoid floating-point rounding errors. Many salons quote a
+ * range ("R50 to R100") rather than a fixed price, so both ends are optional.
  */
 @Entity
 @Table(name = "service_offering")
@@ -88,4 +88,5 @@ public class ServiceOffering {
 	public @Nullable Integer getPriceToCents() {
 		return priceToCents;
 	}
+
 }

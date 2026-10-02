@@ -58,8 +58,12 @@ class SalonController {
 		return salonService.listServices(salonId);
 	}
 
-	/** Builds the new resource's URL from the current request, e.g. POST /api/v1/salons → /api/v1/salons/42. */
+	/**
+	 * Builds the new resource's URL from the current request, e.g. POST /api/v1/salons →
+	 * /api/v1/salons/42.
+	 */
 	private static URI locationOf(Long id) {
 		return ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(id).toUri();
 	}
+
 }

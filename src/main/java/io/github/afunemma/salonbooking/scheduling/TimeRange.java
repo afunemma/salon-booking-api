@@ -1,4 +1,4 @@
-package io.github.afunemma.salonbooking.booking;
+package io.github.afunemma.salonbooking.scheduling;
 
 import java.time.LocalTime;
 import java.util.Objects;
@@ -17,8 +17,8 @@ public record TimeRange(LocalTime start, LocalTime end) {
 	}
 
 	/**
-	 * Two ranges overlap when each one starts before the other ends.
-	 * Touching ranges (one ends at 10:35, the next starts at 10:35) do not overlap.
+	 * Two ranges overlap when each one starts before the other ends. Touching ranges (one
+	 * ends at 10:35, the next starts at 10:35) do not overlap.
 	 */
 	public boolean overlaps(TimeRange other) {
 		return start.isBefore(other.end) && other.start.isBefore(end);

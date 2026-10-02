@@ -5,7 +5,7 @@ import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 
-import io.github.afunemma.salonbooking.booking.OpeningHours;
+import io.github.afunemma.salonbooking.scheduling.OpeningHours;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -52,4 +52,5 @@ public class Salon {
 	public OpeningHours getOpeningHours() {
 		return new OpeningHours(opensAt, closesAt);
 	}
+
 }

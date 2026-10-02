@@ -1,12 +1,14 @@
 package io.github.afunemma.salonbooking.booking;
 
+import io.github.afunemma.salonbooking.common.BusinessRuleException;
+
 /**
  * Thrown when a booking request breaks a business rule, e.g. a date in the past.
- * Mapped to HTTP 400.
  */
-public class BookingNotAllowedException extends RuntimeException {
+public class BookingNotAllowedException extends BusinessRuleException {
 
 	public BookingNotAllowedException(String message) {
-		super(message);
+		super("Booking not allowed", message);
 	}
+
 }

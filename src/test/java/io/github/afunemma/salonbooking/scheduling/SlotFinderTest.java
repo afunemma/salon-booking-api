@@ -1,4 +1,4 @@
-package io.github.afunemma.salonbooking.booking;
+package io.github.afunemma.salonbooking.scheduling;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -13,7 +13,9 @@ import org.junit.jupiter.api.Test;
 class SlotFinderTest {
 
 	private static final OpeningHours NINE_TO_EIGHT = new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0));
+
 	private static final Duration HAIRCUT = Duration.ofMinutes(35);
+
 	private static final Duration EVERY_15_MIN = Duration.ofMinutes(15);
 
 	@Test
@@ -33,9 +35,8 @@ class SlotFinderTest {
 
 		List<LocalTime> slots = SlotFinder.findFreeSlots(NINE_TO_EIGHT, List.of(thabo), HAIRCUT, EVERY_15_MIN);
 
-		assertThat(slots)
-				.contains(LocalTime.of(9, 15), LocalTime.of(10, 45))
-				.doesNotContain(LocalTime.of(9, 30), LocalTime.of(10, 0), LocalTime.of(10, 30));
+		assertThat(slots).contains(LocalTime.of(9, 15), LocalTime.of(10, 45))
+			.doesNotContain(LocalTime.of(9, 30), LocalTime.of(10, 0), LocalTime.of(10, 30));
 	}
 
 	@Test
@@ -56,7 +57,8 @@ class SlotFinderTest {
 
 		List<LocalTime> slots = SlotFinder.findFreeSlots(NINE_TO_EIGHT, List.of(lunch), braids, Duration.ofHours(1));
 
-		// Before lunch there are only 4 hours, so braids can start only from 14:00 onwards.
+		// Before lunch there are only 4 hours, so braids can start only from 14:00
+		// onwards.
 		assertThat(slots).containsExactly(LocalTime.of(14, 0), LocalTime.of(15, 0));
 	}
 
@@ -84,8 +86,9 @@ class SlotFinderTest {
 	@DisplayName("Step must be at least one minute, otherwise the search would never move forward")
 	void rejectsStepShorterThanAMinute() {
 		assertThatThrownBy(() -> SlotFinder.findFreeSlots(NINE_TO_EIGHT, List.of(), HAIRCUT, Duration.ZERO))
-				.isInstanceOf(IllegalArgumentException.class);
+			.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> SlotFinder.findFreeSlots(NINE_TO_EIGHT, List.of(), HAIRCUT, Duration.ofSeconds(30)))
-				.isInstanceOf(IllegalArgumentException.class);
+			.isInstanceOf(IllegalArgumentException.class);
 	}
+
 }

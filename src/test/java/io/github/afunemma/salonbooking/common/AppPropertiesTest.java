@@ -14,23 +14,21 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
  */
 class AppPropertiesTest {
 
-	private final ApplicationContextRunner runner = new ApplicationContextRunner()
-			.withUserConfiguration(Config.class);
+	private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(Config.class);
 
 	@Test
 	void bindsValidSettings() {
-		runner.withPropertyValues("app.time-zone=Africa/Johannesburg", "app.booking.slot-step=15m")
-				.run(context -> {
-					AppProperties properties = context.getBean(AppProperties.class);
-					assertThat(properties.timeZone()).isEqualTo(ZoneId.of("Africa/Johannesburg"));
-					assertThat(properties.booking().slotStep()).isEqualTo(Duration.ofMinutes(15));
-				});
+		runner.withPropertyValues("app.time-zone=Africa/Johannesburg", "app.booking.slot-step=15m").run(context -> {
+			AppProperties properties = context.getBean(AppProperties.class);
+			assertThat(properties.timeZone()).isEqualTo(ZoneId.of("Africa/Johannesburg"));
+			assertThat(properties.booking().slotStep()).isEqualTo(Duration.ofMinutes(15));
+		});
 	}
 
 	@Test
 	void rejectsSlotStepShorterThanAMinute() {
 		runner.withPropertyValues("app.time-zone=Africa/Johannesburg", "app.booking.slot-step=0m")
-				.run(context -> assertThat(context).hasFailed());
+			.run(context -> assertThat(context).hasFailed());
 	}
 
 	@Test
@@ -40,5 +38,7 @@ class AppPropertiesTest {
 
 	@EnableConfigurationProperties(AppProperties.class)
 	static class Config {
+
 	}
+
 }

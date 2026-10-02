@@ -1,4 +1,4 @@
-package io.github.afunemma.salonbooking.booking;
+package io.github.afunemma.salonbooking.scheduling;
 
 import java.time.Duration;
 import java.time.LocalTime;
@@ -9,8 +9,8 @@ import java.util.Objects;
 /**
  * Works out which start times are still free for a service on one day.
  * <p>
- * Deliberately knows nothing about the database: it works on plain time ranges,
- * so it is easy to test and does not change when the persistence layer does.
+ * Deliberately knows nothing about the database: it works on plain time ranges, so it is
+ * easy to test and does not change when the persistence layer does.
  */
 public final class SlotFinder {
 
@@ -18,14 +18,14 @@ public final class SlotFinder {
 	}
 
 	/**
-	 * @param hours         when the salon opens and closes
-	 * @param taken         times that are already booked
+	 * @param hours when the salon opens and closes
+	 * @param taken times that are already booked
 	 * @param serviceLength how long the new appointment will take
-	 * @param step          gap between candidate start times, e.g. every 15 minutes
+	 * @param step gap between candidate start times, e.g. every 15 minutes
 	 * @return every start time where the service fits without clashing, in order
 	 */
-	public static List<LocalTime> findFreeSlots(OpeningHours hours, List<TimeRange> taken,
-			Duration serviceLength, Duration step) {
+	public static List<LocalTime> findFreeSlots(OpeningHours hours, List<TimeRange> taken, Duration serviceLength,
+			Duration step) {
 		Objects.requireNonNull(hours, "hours must not be null");
 		Objects.requireNonNull(taken, "taken must not be null");
 		Objects.requireNonNull(serviceLength, "serviceLength must not be null");
@@ -52,4 +52,5 @@ public final class SlotFinder {
 		}
 		return freeSlots;
 	}
+
 }

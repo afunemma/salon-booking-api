@@ -25,10 +25,11 @@ import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonRepository;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import io.github.afunemma.salonbooking.salon.ServiceOfferingRepository;
+import io.github.afunemma.salonbooking.scheduling.OpeningHours;
 
 /**
- * Runs against a real PostgreSQL in Docker (Testcontainers), with the schema
- * created by the Flyway migrations, so the tests catch SQL and mapping mistakes.
+ * Runs against a real PostgreSQL in Docker (Testcontainers), with the schema created by
+ * the Flyway migrations, so the tests catch SQL and mapping mistakes.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -79,8 +80,8 @@ class BookingRepositoryTest {
 		cancelled.cancel();
 		bookings.save(cancelled);
 
-		List<Booking> result = bookings.findBySalonIdAndBookingDateAndStatusOrderByStartTime(
-				haircut.getSalon().getId(), MONDAY, BookingStatus.BOOKED);
+		List<Booking> result = bookings.findBySalonIdAndBookingDateAndStatusOrderByStartTime(haircut.getSalon().getId(),
+				MONDAY, BookingStatus.BOOKED);
 
 		assertThat(result).extracting(Booking::getClientName).containsExactly("Thabo", "Sipho");
 	}
@@ -90,16 +91,18 @@ class BookingRepositoryTest {
 	void databaseRejectsOverlappingBookings() {
 		bookings.saveAndFlush(new Booking(haircut, "Thabo", "0820000001", MONDAY, LocalTime.of(10, 0)));
 
-		assertThatThrownBy(() -> bookings
-				.saveAndFlush(new Booking(haircut, "Sipho", "0820000002", MONDAY, LocalTime.of(10, 15))))
-				.isInstanceOf(DataIntegrityViolationException.class)
-				// BookingService relies on this SQL error code and constraint name to recognise overlaps.
-				.rootCause()
-				.isInstanceOfSatisfying(PSQLException.class, psql -> {
-					assertThat(psql.getSQLState()).isEqualTo("23P01");
-					assertThat(psql.getServerErrorMessage()).isNotNull()
-							.extracting(ServerErrorMessage::getConstraint).isEqualTo("booking_no_overlap");
-				});
+		assertThatThrownBy(
+				() -> bookings.saveAndFlush(new Booking(haircut, "Sipho", "0820000002", MONDAY, LocalTime.of(10, 15))))
+			.isInstanceOf(DataIntegrityViolationException.class)
+			// BookingService relies on this SQL error code and constraint name to
+			// recognise overlaps.
+			.rootCause()
+			.isInstanceOfSatisfying(PSQLException.class, psql -> {
+				assertThat(psql.getSQLState()).isEqualTo("23P01");
+				assertThat(psql.getServerErrorMessage()).isNotNull()
+					.extracting(ServerErrorMessage::getConstraint)
+					.isEqualTo("booking_no_overlap");
+			});
 	}
 
 	@Test
@@ -113,7 +116,8 @@ class BookingRepositoryTest {
 		bookings.saveAndFlush(new Booking(haircut, "Sipho", "0820000002", MONDAY, LocalTime.of(10, 35)));
 
 		assertThat(bookings.findBySalonIdAndBookingDateAndStatusOrderByStartTime(haircut.getSalon().getId(), MONDAY,
-				BookingStatus.BOOKED)).hasSize(2);
+				BookingStatus.BOOKED))
+			.hasSize(2);
 	}
 
 	@Test
@@ -124,7 +128,7 @@ class BookingRepositoryTest {
 		assertThatThrownBy(() -> jdbc.update("""
 				INSERT INTO service_offering (salon_id, name, duration_minutes, price_from_cents, price_to_cents)
 				VALUES (?, 'Bad price', 30, 10000, 5000)
-				""", salonId))
-				.isInstanceOf(DataIntegrityViolationException.class);
+				""", salonId)).isInstanceOf(DataIntegrityViolationException.class);
 	}
+
 }

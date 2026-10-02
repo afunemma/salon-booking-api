@@ -1,4 +1,4 @@
-package io.github.afunemma.salonbooking.booking;
+package io.github.afunemma.salonbooking.scheduling;
 
 import java.time.LocalTime;
 import java.util.Objects;

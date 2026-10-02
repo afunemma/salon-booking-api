@@ -17,4 +17,5 @@ public interface SalonRepository extends JpaRepository<Salon, Long> {
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select s from Salon s where s.id = :id")
 	Optional<Salon> findByIdForUpdate(Long id);
+
 }

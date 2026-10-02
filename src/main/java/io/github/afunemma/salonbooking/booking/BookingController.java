@@ -43,8 +43,10 @@ class BookingController {
 	@Operation(summary = "Book a free slot", description = "Returns 409 Conflict if the slot is no longer free.")
 	ResponseEntity<BookingResponse> book(@PathVariable Long salonId, @Valid @RequestBody CreateBookingRequest request) {
 		BookingResponse booking = bookingService.book(salonId, request);
-		URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(booking.id())
-				.toUri();
+		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+			.path("/{id}")
+			.buildAndExpand(booking.id())
+			.toUri();
 		return ResponseEntity.created(location).body(booking);
 	}
 
@@ -71,4 +73,5 @@ class BookingController {
 	BookingResponse noShow(@PathVariable Long salonId, @PathVariable Long bookingId) {
 		return bookingService.markNoShow(salonId, bookingId);
 	}
+
 }

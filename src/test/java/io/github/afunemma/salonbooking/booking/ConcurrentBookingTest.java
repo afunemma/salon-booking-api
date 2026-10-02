@@ -25,14 +25,15 @@ import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
 import io.github.afunemma.salonbooking.salon.SalonService;
 
 /**
- * Many clients try to book the same slot at the same moment.
- * Exactly one must succeed; everyone else must get "slot unavailable".
+ * Many clients try to book the same slot at the same moment. Exactly one must succeed;
+ * everyone else must get "slot unavailable".
  */
 @SpringBootTest
 @Import({ TestcontainersConfiguration.class, FixedClockConfiguration.class })
 class ConcurrentBookingTest {
 
 	private static final int CLIENTS = 20;
+
 	private static final LocalDate TOMORROW = LocalDate.of(2030, 1, 7);
 
 	@Autowired
@@ -48,14 +49,16 @@ class ConcurrentBookingTest {
 	@DisplayName("20 clients booking the same slot at once: exactly one wins")
 	void onlyOneOfManySimultaneousBookingsSucceeds() throws Exception {
 		long salonId = salonService
-				.createSalon(new CreateSalonRequest("Race Cuts", LocalTime.of(9, 0), LocalTime.of(20, 0))).id();
+			.createSalon(new CreateSalonRequest("Race Cuts", LocalTime.of(9, 0), LocalTime.of(20, 0)))
+			.id();
 		long haircutId = salonService.addService(salonId, new CreateServiceRequest("Haircut", 35, null, null)).id();
 
 		CountDownLatch startTogether = new CountDownLatch(1);
 		List<Future<Boolean>> results = new ArrayList<>();
 		try (ExecutorService pool = Executors.newFixedThreadPool(CLIENTS)) {
 			for (int i = 0; i < CLIENTS; i++) {
-				// Overlapping start times (10:00 and 10:15) must clash too, not just identical ones.
+				// Overlapping start times (10:00 and 10:15) must clash too, not just
+				// identical ones.
 				LocalTime start = i % 2 == 0 ? LocalTime.of(10, 0) : LocalTime.of(10, 15);
 				CreateBookingRequest request = new CreateBookingRequest(haircutId, "Client " + i, "0820000000",
 						TOMORROW, start);
@@ -80,7 +83,9 @@ class ConcurrentBookingTest {
 			}
 			assertThat(succeeded).as("successful bookings").isEqualTo(1);
 		}
-		assertThat(bookings.findBySalonIdAndBookingDateAndStatusOrderByStartTime(salonId, TOMORROW,
-				BookingStatus.BOOKED)).hasSize(1);
+		assertThat(
+				bookings.findBySalonIdAndBookingDateAndStatusOrderByStartTime(salonId, TOMORROW, BookingStatus.BOOKED))
+			.hasSize(1);
 	}
+
 }

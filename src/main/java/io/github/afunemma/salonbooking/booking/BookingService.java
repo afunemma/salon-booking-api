@@ -22,6 +22,8 @@ import io.github.afunemma.salonbooking.common.NotFoundException;
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonService;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
+import io.github.afunemma.salonbooking.scheduling.SlotFinder;
+import io.github.afunemma.salonbooking.scheduling.TimeRange;
 
 @Service
 @Transactional(readOnly = true)
@@ -29,15 +31,21 @@ public class BookingService {
 
 	private static final Logger log = LoggerFactory.getLogger(BookingService.class);
 
-	/** Name of the database constraint that rejects overlapping bookings (see V2 migration). */
+	/**
+	 * Name of the database constraint that rejects overlapping bookings (see V2
+	 * migration).
+	 */
 	private static final String OVERLAP_CONSTRAINT = "booking_no_overlap";
 
 	/** PostgreSQL's error code for a broken exclusion constraint. */
 	private static final String EXCLUSION_VIOLATION = "23P01";
 
 	private final BookingRepository bookings;
+
 	private final SalonService salonService;
+
 	private final Clock clock;
+
 	private final Duration slotStep;
 
 	BookingService(BookingRepository bookings, SalonService salonService, Clock clock, AppProperties properties) {
@@ -83,26 +91,32 @@ public class BookingService {
 		}
 		catch (DataIntegrityViolationException ex) {
 			if (isOverlapViolation(ex)) {
-				// Should be rare: the salon lock normally stops overlaps before they reach the database.
-				log.warn("Overlapping booking rejected by database: salon={} date={} start={}", salonId,
-						request.date(), request.startTime());
+				// Should be rare: the salon lock normally stops overlaps before they
+				// reach the database.
+				log.warn("Overlapping booking rejected by database: salon={} date={} start={}", salonId, request.date(),
+						request.startTime());
 				throw new SlotUnavailableException(
 						request.startTime() + " on " + request.date() + " was just booked by someone else");
 			}
 			throw ex;
 		}
-		// Client name and phone number are personal information (POPIA), so they are not logged.
+		// Client name and phone number are personal information (POPIA), so they are not
+		// logged.
 		log.info("Booking created: id={} salon={} service={} date={} start={}", booking.getId(), salonId,
 				service.getId(), booking.getBookingDate(), booking.getStartTime());
 		return BookingResponse.from(booking);
 	}
 
-	/** The salon's day view: every booking on a date, including cancelled ones and no-shows. */
+	/**
+	 * The salon's day view: every booking on a date, including cancelled ones and
+	 * no-shows.
+	 */
 	public List<BookingResponse> listBookings(Long salonId, LocalDate date) {
 		salonService.findSalon(salonId);
-		return bookings.findBySalonIdAndBookingDateOrderByStartTime(salonId, date).stream()
-				.map(BookingResponse::from)
-				.toList();
+		return bookings.findBySalonIdAndBookingDateOrderByStartTime(salonId, date)
+			.stream()
+			.map(BookingResponse::from)
+			.toList();
 	}
 
 	@Transactional
@@ -136,10 +150,10 @@ public class BookingService {
 		}
 		Salon salon = service.getSalon();
 		List<TimeRange> taken = bookings
-				.findBySalonIdAndBookingDateAndStatusOrderByStartTime(salon.getId(), date, BookingStatus.BOOKED)
-				.stream()
-				.map(Booking::getTimeRange)
-				.toList();
+			.findBySalonIdAndBookingDateAndStatusOrderByStartTime(salon.getId(), date, BookingStatus.BOOKED)
+			.stream()
+			.map(Booking::getTimeRange)
+			.toList();
 		List<LocalTime> free = SlotFinder.findFreeSlots(salon.getOpeningHours(), taken, service.getDuration(),
 				slotStep);
 		if (date.equals(today)) {
@@ -151,14 +165,16 @@ public class BookingService {
 
 	/**
 	 * Recognises the overlap error by its SQL error code and constraint name, which are
-	 * stable, rather than by its message text, which can change between versions.
-	 * The name comes from PostgreSQL's own error details, because Hibernate doesn't
-	 * extract it for exclusion constraints.
+	 * stable, rather than by its message text, which can change between versions. The
+	 * name comes from PostgreSQL's own error details, because Hibernate doesn't extract
+	 * it for exclusion constraints.
 	 */
 	private static boolean isOverlapViolation(DataIntegrityViolationException ex) {
 		for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-			if (cause instanceof PSQLException psql && psql.getServerErrorMessage() instanceof ServerErrorMessage error) {
-				return EXCLUSION_VIOLATION.equals(psql.getSQLState()) && OVERLAP_CONSTRAINT.equals(error.getConstraint());
+			if (cause instanceof PSQLException psql
+					&& psql.getServerErrorMessage() instanceof ServerErrorMessage error) {
+				return EXCLUSION_VIOLATION.equals(psql.getSQLState())
+						&& OVERLAP_CONSTRAINT.equals(error.getConstraint());
 			}
 		}
 		return false;
@@ -166,7 +182,8 @@ public class BookingService {
 
 	private Booking findBooking(Long salonId, Long bookingId) {
 		return bookings.findById(bookingId)
-				.filter(booking -> salonId.equals(booking.getSalon().getId()))
-				.orElseThrow(() -> new NotFoundException("Booking " + bookingId + " not found in salon " + salonId));
+			.filter(booking -> salonId.equals(booking.getSalon().getId()))
+			.orElseThrow(() -> new NotFoundException("Booking " + bookingId + " not found in salon " + salonId));
 	}
+
 }
