@@ -11,4 +11,5 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 			BookingStatus status);
 
 	List<Booking> findBySalonIdAndBookingDateOrderByStartTime(Long salonId, LocalDate bookingDate);
+
 }

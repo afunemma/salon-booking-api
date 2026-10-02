@@ -18,20 +18,17 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import io.github.afunemma.salonbooking.booking.BookingNotAllowedException;
-import io.github.afunemma.salonbooking.booking.InvalidBookingStateException;
-import io.github.afunemma.salonbooking.booking.SlotUnavailableException;
-
 /**
- * Turns exceptions into consistent JSON error responses using the
- * RFC 9457 "Problem Details" format, e.g.
+ * Turns exceptions into consistent JSON error responses using the RFC 9457 "Problem
+ * Details" format, e.g.
  * <pre>{"status": 409, "title": "Slot unavailable", "detail": "10:00 is not free on 2030-01-07"}</pre>
- * Extending {@link ResponseEntityExceptionHandler} gives the same format for Spring's
- * own errors, such as failed {@code @Valid} checks and malformed JSON.
+ * Extending {@link ResponseEntityExceptionHandler} gives the same format for Spring's own
+ * errors, such as failed {@code @Valid} checks and malformed JSON.
  * <p>
- * Only the application's own exceptions are mapped to 4xx responses. Anything else
- * is a bug: it is logged in full and the client gets a generic 500, so internal
- * details never leak.
+ * Only the application's own exception categories ({@link NotFoundException},
+ * {@link BusinessRuleException}, {@link ConflictException}) are mapped to 4xx responses.
+ * Anything else is a bug: it is logged in full and the client gets a generic 500, so
+ * internal details never leak.
  */
 @RestControllerAdvice
 class ApiExceptionHandler extends ResponseEntityExceptionHandler {
@@ -43,19 +40,14 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem(HttpStatus.NOT_FOUND, "Not found", ex.getMessage());
 	}
 
-	@ExceptionHandler(BookingNotAllowedException.class)
-	ProblemDetail handleBookingNotAllowed(BookingNotAllowedException ex) {
-		return problem(HttpStatus.BAD_REQUEST, "Booking not allowed", ex.getMessage());
+	@ExceptionHandler(BusinessRuleException.class)
+	ProblemDetail handleBusinessRule(BusinessRuleException ex) {
+		return problem(HttpStatus.BAD_REQUEST, ex.getTitle(), ex.getMessage());
 	}
 
-	@ExceptionHandler(SlotUnavailableException.class)
-	ProblemDetail handleSlotUnavailable(SlotUnavailableException ex) {
-		return problem(HttpStatus.CONFLICT, "Slot unavailable", ex.getMessage());
-	}
-
-	@ExceptionHandler(InvalidBookingStateException.class)
-	ProblemDetail handleInvalidBookingState(InvalidBookingStateException ex) {
-		return problem(HttpStatus.CONFLICT, "Invalid booking state", ex.getMessage());
+	@ExceptionHandler(ConflictException.class)
+	ProblemDetail handleConflict(ConflictException ex) {
+		return problem(HttpStatus.CONFLICT, ex.getTitle(), ex.getMessage());
 	}
 
 	@ExceptionHandler(Exception.class)
@@ -64,7 +56,9 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Internal error", "Something went wrong on our side");
 	}
 
-	/** Lists every invalid field, e.g. {"errors": {"clientPhone": "must not be blank"}}. */
+	/**
+	 * Lists every invalid field, e.g. {"errors": {"clientPhone": "must not be blank"}}.
+	 */
 	@Override
 	protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
 			HttpHeaders headers, HttpStatusCode status, WebRequest request) {
@@ -82,4 +76,5 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 		problem.setTitle(title);
 		return problem;
 	}
+
 }

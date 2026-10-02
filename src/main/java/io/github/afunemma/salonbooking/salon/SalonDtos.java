@@ -17,20 +17,19 @@ import jakarta.validation.constraints.Size;
 /**
  * Request and response bodies for the salon endpoints.
  * <p>
- * The API uses these records instead of exposing JPA entities directly, so the
- * database structure can change without breaking API clients.
+ * The API uses these records instead of exposing JPA entities directly, so the database
+ * structure can change without breaking API clients.
  */
 public final class SalonDtos {
 
 	private SalonDtos() {
 	}
 
-	public record CreateSalonRequest(
-			@NotBlank @Size(max = 255) String name,
-			@NotNull LocalTime opensAt,
+	public record CreateSalonRequest(@NotBlank @Size(max = 255) String name, @NotNull LocalTime opensAt,
 			@NotNull LocalTime closesAt) {
 
-		// Fields can still be null here: this check runs alongside @NotNull, not after it.
+		// Fields can still be null here: this check runs alongside @NotNull, not after
+		// it.
 		@JsonIgnore
 		@AssertTrue(message = "opensAt must be before closesAt")
 		boolean isOpeningHoursValid() {
@@ -46,11 +45,9 @@ public final class SalonDtos {
 		}
 	}
 
-	public record CreateServiceRequest(
-			@NotBlank @Size(max = 255) String name,
+	public record CreateServiceRequest(@NotBlank @Size(max = 255) String name,
 			@NotNull @Positive @Max(value = 720, message = "must be at most 12 hours") Integer durationMinutes,
-			@PositiveOrZero @Nullable Integer priceFromCents,
-			@PositiveOrZero @Nullable Integer priceToCents) {
+			@PositiveOrZero @Nullable Integer priceFromCents, @PositiveOrZero @Nullable Integer priceToCents) {
 
 		@JsonIgnore
 		@AssertTrue(message = "priceToCents must not be lower than priceFromCents")
@@ -68,4 +65,5 @@ public final class SalonDtos {
 					service.getPriceToCents());
 		}
 	}
+
 }

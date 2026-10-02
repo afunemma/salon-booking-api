@@ -8,12 +8,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import io.github.afunemma.salonbooking.booking.OpeningHours;
 import io.github.afunemma.salonbooking.common.NotFoundException;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
+import io.github.afunemma.salonbooking.scheduling.OpeningHours;
 
 @Service
 @Transactional(readOnly = true)
@@ -22,6 +22,7 @@ public class SalonService {
 	private static final Logger log = LoggerFactory.getLogger(SalonService.class);
 
 	private final SalonRepository salons;
+
 	private final ServiceOfferingRepository services;
 
 	SalonService(SalonRepository salons, ServiceOfferingRepository services) {
@@ -62,18 +63,21 @@ public class SalonService {
 	}
 
 	/**
-	 * Locks the salon until the current transaction ends, so bookings for the same
-	 * salon are handled one at a time. Must be called inside a transaction.
+	 * Locks the salon until the current transaction ends, so bookings for the same salon
+	 * are handled one at a time. Must be called inside a transaction.
 	 */
 	public void lockSalon(Long salonId) {
-		salons.findByIdForUpdate(salonId)
-				.orElseThrow(() -> new NotFoundException("Salon " + salonId + " not found"));
+		salons.findByIdForUpdate(salonId).orElseThrow(() -> new NotFoundException("Salon " + salonId + " not found"));
 	}
 
-	/** Finds a service and checks it belongs to the given salon, so one salon can't book another's services. */
+	/**
+	 * Finds a service and checks it belongs to the given salon, so one salon can't book
+	 * another's services.
+	 */
 	public ServiceOffering findService(Long salonId, Long serviceId) {
 		return services.findById(serviceId)
-				.filter(service -> salonId.equals(service.getSalon().getId()))
-				.orElseThrow(() -> new NotFoundException("Service " + serviceId + " not found in salon " + salonId));
+			.filter(service -> salonId.equals(service.getSalon().getId()))
+			.orElseThrow(() -> new NotFoundException("Service " + serviceId + " not found in salon " + salonId));
 	}
+
 }

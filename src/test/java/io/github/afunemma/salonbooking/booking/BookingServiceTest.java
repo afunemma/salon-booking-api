@@ -26,20 +26,24 @@ import io.github.afunemma.salonbooking.common.AppProperties;
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonService;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
+import io.github.afunemma.salonbooking.scheduling.OpeningHours;
 
 /**
  * Unit tests for the database-error handling in {@link BookingService#book}.
  * <p>
- * In normal use the salon lock stops overlaps before they reach the database, so
- * this path is simulated: the repository is mocked to fail the way PostgreSQL does.
+ * In normal use the salon lock stops overlaps before they reach the database, so this
+ * path is simulated: the repository is mocked to fail the way PostgreSQL does.
  */
 class BookingServiceTest {
 
 	private static final LocalDate TOMORROW = LocalDate.of(2030, 1, 7);
 
 	private final BookingRepository bookings = mock(BookingRepository.class);
+
 	private final SalonService salonService = mock(SalonService.class);
+
 	private BookingService bookingService;
+
 	private CreateBookingRequest request;
 
 	@BeforeEach
@@ -56,7 +60,7 @@ class BookingServiceTest {
 
 		when(salonService.findService(1L, 2L)).thenReturn(haircut);
 		when(bookings.findBySalonIdAndBookingDateAndStatusOrderByStartTime(1L, TOMORROW, BookingStatus.BOOKED))
-				.thenReturn(List.of());
+			.thenReturn(List.of());
 		request = new CreateBookingRequest(2L, "Thabo", "082 123 4567", TOMORROW, LocalTime.of(10, 0));
 	}
 
@@ -65,9 +69,8 @@ class BookingServiceTest {
 	void overlapConstraintBecomesSlotUnavailable() {
 		when(bookings.saveAndFlush(any())).thenThrow(databaseError("23P01", "booking_no_overlap"));
 
-		assertThatThrownBy(() -> bookingService.book(1L, request))
-				.isInstanceOf(SlotUnavailableException.class)
-				.hasMessageContaining("just booked by someone else");
+		assertThatThrownBy(() -> bookingService.book(1L, request)).isInstanceOf(SlotUnavailableException.class)
+			.hasMessageContaining("just booked by someone else");
 	}
 
 	@Test
@@ -75,15 +78,16 @@ class BookingServiceTest {
 	void otherConstraintIsRethrown() {
 		when(bookings.saveAndFlush(any())).thenThrow(databaseError("23514", "booking_starts_before_ends"));
 
-		assertThatThrownBy(() -> bookingService.book(1L, request))
-				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> bookingService.book(1L, request)).isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	/** Builds the exception chain Spring produces when PostgreSQL rejects an insert. */
 	private static DataIntegrityViolationException databaseError(String sqlState, String constraint) {
-		// PostgreSQL error fields: S = severity, C = SQL state, n = constraint name, M = message.
+		// PostgreSQL error fields: S = severity, C = SQL state, n = constraint name, M =
+		// message.
 		ServerErrorMessage error = new ServerErrorMessage(
 				"SERROR\0C" + sqlState + "\0n" + constraint + "\0Mconstraint violated\0");
 		return new DataIntegrityViolationException("could not execute statement", new PSQLException(error));
 	}
+
 }

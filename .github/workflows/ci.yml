@@ -24,3 +24,27 @@ jobs:
 
       - name: Build and run tests
         run: ./mvnw -B verify
+
+      - name: Coverage summary
+        if: always() && hashFiles('target/site/jacoco/jacoco.csv') != ''
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import csv
+          rows = list(csv.DictReader(open("target/site/jacoco/jacoco.csv")))
+          total = lambda key: sum(int(row[key]) for row in rows)
+          def percent(kind):
+              covered, missed = total(f"{kind}_COVERED"), total(f"{kind}_MISSED")
+              return 100 * covered / (covered + missed)
+          print("### Test coverage")
+          print("| Lines | Branches |")
+          print("|---|---|")
+          print(f"| {percent('LINE'):.1f}% | {percent('BRANCH'):.1f}% |")
+          PY
+
+      - name: Upload coverage report
+        if: always() && hashFiles('target/site/jacoco/index.html') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: target/site/jacoco/
+          retention-days: 14

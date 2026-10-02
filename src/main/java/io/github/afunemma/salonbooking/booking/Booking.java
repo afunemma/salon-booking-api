@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
+import io.github.afunemma.salonbooking.scheduling.TimeRange;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -24,8 +25,8 @@ import jakarta.persistence.Table;
 /**
  * A client's appointment at a salon.
  * <p>
- * The end time is stored (not just calculated) so the database can check
- * for overlapping bookings later on.
+ * The end time is stored (not just calculated) so the database can check for overlapping
+ * bookings later on.
  */
 @Entity
 @Table(name = "booking")
@@ -144,4 +145,5 @@ public class Booking {
 	public Instant getCreatedAt() {
 		return createdAt;
 	}
+
 }

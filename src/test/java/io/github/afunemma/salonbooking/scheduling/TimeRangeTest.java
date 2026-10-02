@@ -1,4 +1,4 @@
-package io.github.afunemma.salonbooking.booking;
+package io.github.afunemma.salonbooking.scheduling;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,4 +38,5 @@ class TimeRangeTest {
 	private static TimeRange range(int startHour, int startMinute, int endHour, int endMinute) {
 		return new TimeRange(LocalTime.of(startHour, startMinute), LocalTime.of(endHour, endMinute));
 	}
+
 }

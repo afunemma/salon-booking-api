@@ -26,7 +26,8 @@ The goal is to let clients book themselves and to cut no-shows, without adding a
 | API | REST with Spring MVC, Bean Validation, OpenAPI / Swagger UI (springdoc) |
 | Database | PostgreSQL 18, with Flyway migrations and Spring Data JPA |
 | Build | Maven (wrapper included) |
-| Testing | JUnit 5, AssertJ, Testcontainers (real PostgreSQL in Docker) |
+| Testing | JUnit 5, AssertJ, Mockito, Testcontainers (real PostgreSQL in Docker) |
+| Quality | ArchUnit (architecture rules), JaCoCo (coverage minimums), Spring Java Format, CodeQL |
 | CI | GitHub Actions: builds and tests every push |
 
 ## Run it
@@ -34,7 +35,8 @@ The goal is to let clients book themselves and to cut no-shows, without adding a
 You need Java 25 or newer and Docker.
 
 ```bash
-./mvnw verify           # build and run all tests (starts a throwaway PostgreSQL in Docker)
+./mvnw verify                   # format check, all tests, coverage check (starts a throwaway PostgreSQL in Docker)
+./mvnw spring-javaformat:apply  # auto-format the code
 ./mvnw spring-boot:run  # start the app on http://localhost:8080
 ```
 
@@ -145,6 +147,19 @@ I also tried the constraint alone. It stopped the double bookings, but under hea
 - [ ] Authentication and roles (owner, staff, client), with each salon's data kept separate
 - [ ] Error handling, logging and an architecture diagram
 - [ ] Live demo deployment
+
+## Engineering practices
+
+- **Architecture rules are tests.** [`ArchitectureTest`](src/test/java/io/github/afunemma/salonbooking/ArchitectureTest.java) fails the build if the design erodes:
+  - no package cycles
+  - controllers never touch repositories or entities
+  - the `scheduling` logic stays free of Spring and JPA
+  - constructor injection only
+  - logging only through SLF4J
+- **Coverage minimums.** JaCoCo fails the build below 85% line or 75% branch coverage. Each CI run shows the numbers in its summary and keeps the full HTML report as a downloadable artifact.
+- **Consistent formatting.** Spring Java Format checks every file, and CI fails on unformatted code.
+- **Decisions are written down.** [Architecture Decision Records](docs/adr/README.md) explain the key choices, the trade-offs and the rejected alternatives.
+- **Pull requests.** Changes go through a branch and a pull request, where CI, CodeQL and the checks above must pass before merging.
 
 ## Security
 
