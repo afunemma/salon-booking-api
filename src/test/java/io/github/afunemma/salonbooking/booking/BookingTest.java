@@ -16,7 +16,8 @@ import io.github.afunemma.salonbooking.scheduling.TimeRange;
 
 class BookingTest {
 
-	private final Salon salon = new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)));
+	private final Salon salon = new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)),
+			1L);
 
 	private final ServiceOffering haircut = new ServiceOffering(salon, "Haircut", Duration.ofMinutes(35), null, null);
 

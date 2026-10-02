@@ -11,3 +11,4 @@ New decisions get the next number. If a decision is later replaced, its status b
 | [0003](0003-store-money-as-integer-cents.md) | Store money as integer cents, with optional price ranges | Accepted |
 | [0004](0004-prevent-double-bookings-with-lock-and-constraint.md) | Prevent double bookings with a row lock and an exclusion constraint | Accepted |
 | [0005](0005-package-by-feature-with-enforced-boundaries.md) | Package by feature, with boundaries enforced by tests | Accepted |
+| [0006](0006-stateless-jwt-auth-for-owners-only.md) | Stateless JWT login for salon owners; clients book without an account | Accepted |

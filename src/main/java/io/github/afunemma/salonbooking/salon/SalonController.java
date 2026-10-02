@@ -4,6 +4,8 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,11 +14,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import io.github.afunemma.salonbooking.common.OpenApiConfig;
+import io.github.afunemma.salonbooking.common.TokenService;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
@@ -32,10 +37,19 @@ class SalonController {
 	}
 
 	@PostMapping
-	@Operation(summary = "Create a salon")
-	ResponseEntity<SalonResponse> createSalon(@Valid @RequestBody CreateSalonRequest request) {
-		SalonResponse salon = salonService.createSalon(request);
+	@Operation(summary = "Create a salon, owned by the logged-in user")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
+	ResponseEntity<SalonResponse> createSalon(@Valid @RequestBody CreateSalonRequest request,
+			@AuthenticationPrincipal Jwt token) {
+		SalonResponse salon = salonService.createSalon(request, TokenService.userIdOf(token));
 		return ResponseEntity.created(locationOf(salon.id())).body(salon);
+	}
+
+	@GetMapping
+	@Operation(summary = "List the logged-in user's salons")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
+	List<SalonResponse> listMySalons(@AuthenticationPrincipal Jwt token) {
+		return salonService.listOwnedSalons(TokenService.userIdOf(token));
 	}
 
 	@GetMapping("/{salonId}")
@@ -45,10 +59,11 @@ class SalonController {
 	}
 
 	@PostMapping("/{salonId}/services")
-	@Operation(summary = "Add a service, e.g. a 35-minute haircut")
+	@Operation(summary = "Add a service, e.g. a 35-minute haircut (owner only)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 	ResponseEntity<ServiceResponse> addService(@PathVariable Long salonId,
-			@Valid @RequestBody CreateServiceRequest request) {
-		ServiceResponse service = salonService.addService(salonId, request);
+			@Valid @RequestBody CreateServiceRequest request, @AuthenticationPrincipal Jwt token) {
+		ServiceResponse service = salonService.addService(salonId, TokenService.userIdOf(token), request);
 		return ResponseEntity.created(locationOf(service.id())).body(service);
 	}
 

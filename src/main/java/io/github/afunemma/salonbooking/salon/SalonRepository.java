@@ -1,5 +1,6 @@
 package io.github.afunemma.salonbooking.salon;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import jakarta.persistence.LockModeType;
 
 public interface SalonRepository extends JpaRepository<Salon, Long> {
+
+	List<Salon> findByOwnerIdOrderByName(Long ownerId);
 
 	/**
 	 * Loads a salon and locks its row ({@code SELECT ... FOR UPDATE}) until the

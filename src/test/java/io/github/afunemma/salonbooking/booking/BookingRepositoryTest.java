@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -20,7 +21,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import io.github.afunemma.salonbooking.AuthTestSupport;
 import io.github.afunemma.salonbooking.TestcontainersConfiguration;
+import io.github.afunemma.salonbooking.account.AppUser;
+import io.github.afunemma.salonbooking.account.AppUserRepository;
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonRepository;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
@@ -39,6 +43,9 @@ class BookingRepositoryTest {
 	private static final LocalDate MONDAY = LocalDate.of(2026, 10, 5);
 
 	@Autowired
+	private AppUserRepository users;
+
+	@Autowired
 	private SalonRepository salons;
 
 	@Autowired
@@ -54,7 +61,9 @@ class BookingRepositoryTest {
 
 	@BeforeEach
 	void createSalonWithHaircut() {
-		Salon salon = salons.save(new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0))));
+		AppUser owner = users.save(new AppUser(AuthTestSupport.uniqueEmail(), "{noop}not-used", Instant.now()));
+		Salon salon = salons
+			.save(new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)), owner.getId()));
 		haircut = services.save(new ServiceOffering(salon, "Haircut", Duration.ofMinutes(35), 5000, 10000));
 	}
 

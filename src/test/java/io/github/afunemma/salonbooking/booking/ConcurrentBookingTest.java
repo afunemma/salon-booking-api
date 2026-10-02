@@ -2,6 +2,7 @@ package io.github.afunemma.salonbooking.booking;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -17,8 +18,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 
+import io.github.afunemma.salonbooking.AuthTestSupport;
 import io.github.afunemma.salonbooking.FixedClockConfiguration;
 import io.github.afunemma.salonbooking.TestcontainersConfiguration;
+import io.github.afunemma.salonbooking.account.AppUser;
+import io.github.afunemma.salonbooking.account.AppUserRepository;
 import io.github.afunemma.salonbooking.booking.BookingDtos.CreateBookingRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
@@ -37,6 +41,9 @@ class ConcurrentBookingTest {
 	private static final LocalDate TOMORROW = LocalDate.of(2030, 1, 7);
 
 	@Autowired
+	private AppUserRepository users;
+
+	@Autowired
 	private SalonService salonService;
 
 	@Autowired
@@ -48,10 +55,12 @@ class ConcurrentBookingTest {
 	@RepeatedTest(3)
 	@DisplayName("20 clients booking the same slot at once: exactly one wins")
 	void onlyOneOfManySimultaneousBookingsSucceeds() throws Exception {
+		long ownerId = users.save(new AppUser(AuthTestSupport.uniqueEmail(), "{noop}not-used", Instant.now())).getId();
 		long salonId = salonService
-			.createSalon(new CreateSalonRequest("Race Cuts", LocalTime.of(9, 0), LocalTime.of(20, 0)))
+			.createSalon(new CreateSalonRequest("Race Cuts", LocalTime.of(9, 0), LocalTime.of(20, 0)), ownerId)
 			.id();
-		long haircutId = salonService.addService(salonId, new CreateServiceRequest("Haircut", 35, null, null)).id();
+		long haircutId = salonService.addService(salonId, ownerId, new CreateServiceRequest("Haircut", 35, null, null))
+			.id();
 
 		CountDownLatch startTogether = new CountDownLatch(1);
 		List<Future<Boolean>> results = new ArrayList<>();

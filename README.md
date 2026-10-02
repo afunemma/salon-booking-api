@@ -5,7 +5,7 @@
 
 A REST API that lets clients book appointments at salons (barbers, hair, braids, nails and beauty). It is built with Java and Spring Boot.
 
-> **Status: work in progress.** The REST API, scheduling logic, database layer and double-booking protection are done and tested. Authentication and roles are next (see the [roadmap](#roadmap)).
+> **Status: work in progress.** The REST API, scheduling logic, double-booking protection and owner login are done and tested. Next up: polishing and a live demo (see the [roadmap](#roadmap)).
 
 ## Why this project
 
@@ -24,6 +24,7 @@ The goal is to let clients book themselves and to cut no-shows, without adding a
 | Language | Java 25 |
 | Framework | Spring Boot 4 |
 | API | REST with Spring MVC, Bean Validation, OpenAPI / Swagger UI (springdoc) |
+| Security | Spring Security, JWT (OAuth 2 resource server), BCrypt |
 | Database | PostgreSQL 18, with Flyway migrations and Spring Data JPA |
 | Build | Maven (wrapper included) |
 | Testing | JUnit 5, AssertJ, Mockito, Testcontainers (real PostgreSQL in Docker) |
@@ -42,21 +43,32 @@ You need Java 25 or newer and Docker.
 
 `spring-boot:run` starts PostgreSQL from `compose.yaml` automatically and stops it when the app stops. Flyway creates the tables on startup.
 
+Locally, login tokens are signed with a random key generated at startup, so you log in again after a restart. In any real deployment, set `APP_SECURITY_JWT_SECRET` (at least 32 characters).
+
+If an older local database fails a new migration, reset it with `docker compose down -v`. This deletes local data only.
+
 - Swagger UI (try every endpoint in the browser): <http://localhost:8080/swagger-ui.html>
 - Health check: <http://localhost:8080/actuator/health>
 
 ## API
 
-| Method | Endpoint | What it does |
-|---|---|---|
-| `POST` | `/api/v1/salons` | Create a salon with opening hours |
-| `GET` | `/api/v1/salons/{salonId}` | Get a salon |
-| `POST` | `/api/v1/salons/{salonId}/services` | Add a service, e.g. a 35-minute haircut at R50–R100 |
-| `GET` | `/api/v1/salons/{salonId}/services` | List a salon's services |
-| `GET` | `/api/v1/salons/{salonId}/free-slots?serviceId=&date=` | Free start times for a service on a date |
-| `POST` | `/api/v1/salons/{salonId}/bookings` | Book a free slot |
-| `GET` | `/api/v1/salons/{salonId}/bookings?date=` | The salon's day view |
-| `POST` | `/api/v1/salons/{salonId}/bookings/{bookingId}/cancel` · `/complete` · `/no-show` | Update a booking |
+Clients book **without an account**. Salon owners register, log in, and send the token as `Authorization: Bearer <token>`. In Swagger UI, use the **Authorize** button.
+
+| Method | Endpoint | Who | What it does |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/register` | Anyone | Register a salon owner account |
+| `POST` | `/api/v1/auth/login` | Anyone | Log in and get a token (valid for 1 hour) |
+| `POST` | `/api/v1/salons` | 🔒 Owner | Create a salon with opening hours |
+| `GET` | `/api/v1/salons` | 🔒 Owner | List your salons |
+| `GET` | `/api/v1/salons/{salonId}` | Anyone | Get a salon |
+| `POST` | `/api/v1/salons/{salonId}/services` | 🔒 Owner | Add a service, e.g. a 35-minute haircut at R50–R100 |
+| `GET` | `/api/v1/salons/{salonId}/services` | Anyone | List a salon's services |
+| `GET` | `/api/v1/salons/{salonId}/free-slots?serviceId=&date=` | Anyone | Free start times for a service on a date |
+| `POST` | `/api/v1/salons/{salonId}/bookings` | Anyone | Book a free slot |
+| `GET` | `/api/v1/salons/{salonId}/bookings?date=` | 🔒 Owner | The salon's day view |
+| `POST` | `/api/v1/salons/{salonId}/bookings/{bookingId}/cancel` · `/complete` · `/no-show` | 🔒 Owner | Update a booking |
+
+🔒 = the salon's owner only. Other logged-in owners get `403 Forbidden`.
 
 Example: book a haircut.
 
@@ -144,9 +156,25 @@ I also tried the constraint alone. It stopped the double bookings, but under hea
 - [x] PostgreSQL + Flyway migrations, running in Docker, with Testcontainers tests
 - [x] REST API for salons, services, free slots and bookings, with OpenAPI docs
 - [x] Prevent double bookings when two clients book the same slot at once (lock + exclusion constraint, with a concurrency test)
-- [ ] Authentication and roles (owner, staff, client), with each salon's data kept separate
-- [ ] Error handling, logging and an architecture diagram
+- [x] Owner login (JWT), with each salon's data visible only to its owner. Clients book without an account
+- [ ] Clients cancel their own booking from a link
+- [ ] Staff members with their own schedules
+- [x] Specific error types, structured logging without personal data, typed config (PR #1)
+- [x] Architecture tests, coverage minimums, formatting and ADRs (PR #2)
+- [ ] Architecture diagram, metrics and login rate limiting
 - [ ] Live demo deployment
+
+## Security design
+
+Full reasoning: [ADR-0006](docs/adr/0006-stateless-jwt-auth-for-owners-only.md).
+
+- **Tokens:** stateless JWT login using Spring Security's built-in resource server support, not hand-written token code. Tokens are signed with HMAC-SHA256, hold only the user id, and expire after 1 hour.
+- **Ownership:** checked in one place (`SalonService.findOwnedSalon`). Owners can only see and change their own salon. Client names and phone numbers are visible only to that salon's owner.
+- **Passwords:** hashed with BCrypt and 12 to 72 characters long. They are never stored, returned or logged.
+- **Login gives nothing away:** a wrong password and an unknown email return an identical response in the same time (a dummy hash check), so the login form can't be used to discover registered emails.
+- **The signing key comes from the environment,** never from a committed file.
+- **Errors:** security errors (`401`, `403`) use the same Problem Details format as every other error.
+- **Tests:** [`SecurityIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/SecurityIntegrationTest.java) covers missing, garbage, expired and forged tokens, password hashing, and one owner trying to read or change another owner's salon.
 
 ## Engineering practices
 

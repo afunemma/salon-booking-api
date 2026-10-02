@@ -16,18 +16,31 @@ class AppPropertiesTest {
 
 	private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(Config.class);
 
+	private static final String[] VALID = { "app.time-zone=Africa/Johannesburg", "app.booking.slot-step=15m",
+			"app.security.token-lifetime=1h" };
+
 	@Test
 	void bindsValidSettings() {
-		runner.withPropertyValues("app.time-zone=Africa/Johannesburg", "app.booking.slot-step=15m").run(context -> {
+		runner.withPropertyValues(VALID).run(context -> {
 			AppProperties properties = context.getBean(AppProperties.class);
 			assertThat(properties.timeZone()).isEqualTo(ZoneId.of("Africa/Johannesburg"));
 			assertThat(properties.booking().slotStep()).isEqualTo(Duration.ofMinutes(15));
+			assertThat(properties.security().jwtSecret()).isNull();
+			assertThat(properties.security().tokenLifetime()).isEqualTo(Duration.ofHours(1));
 		});
 	}
 
 	@Test
 	void rejectsSlotStepShorterThanAMinute() {
-		runner.withPropertyValues("app.time-zone=Africa/Johannesburg", "app.booking.slot-step=0m")
+		runner.withPropertyValues(VALID)
+			.withPropertyValues("app.booking.slot-step=0m")
+			.run(context -> assertThat(context).hasFailed());
+	}
+
+	@Test
+	void rejectsJwtSecretShorterThan32Characters() {
+		runner.withPropertyValues(VALID)
+			.withPropertyValues("app.security.jwt-secret=too-short")
 			.run(context -> assertThat(context).hasFailed());
 	}
 

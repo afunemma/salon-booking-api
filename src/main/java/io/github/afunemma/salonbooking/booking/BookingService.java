@@ -109,10 +109,10 @@ public class BookingService {
 
 	/**
 	 * The salon's day view: every booking on a date, including cancelled ones and
-	 * no-shows.
+	 * no-shows. Owner only.
 	 */
-	public List<BookingResponse> listBookings(Long salonId, LocalDate date) {
-		salonService.findSalon(salonId);
+	public List<BookingResponse> listBookings(Long salonId, Long userId, LocalDate date) {
+		salonService.findOwnedSalon(salonId, userId);
 		return bookings.findBySalonIdAndBookingDateOrderByStartTime(salonId, date)
 			.stream()
 			.map(BookingResponse::from)
@@ -120,24 +120,24 @@ public class BookingService {
 	}
 
 	@Transactional
-	public BookingResponse cancel(Long salonId, Long bookingId) {
-		Booking booking = findBooking(salonId, bookingId);
+	public BookingResponse cancel(Long salonId, Long bookingId, Long userId) {
+		Booking booking = findOwnedBooking(salonId, bookingId, userId);
 		booking.cancel();
 		log.info("Booking cancelled: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
 	}
 
 	@Transactional
-	public BookingResponse markCompleted(Long salonId, Long bookingId) {
-		Booking booking = findBooking(salonId, bookingId);
+	public BookingResponse markCompleted(Long salonId, Long bookingId, Long userId) {
+		Booking booking = findOwnedBooking(salonId, bookingId, userId);
 		booking.markCompleted();
 		log.info("Booking completed: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
 	}
 
 	@Transactional
-	public BookingResponse markNoShow(Long salonId, Long bookingId) {
-		Booking booking = findBooking(salonId, bookingId);
+	public BookingResponse markNoShow(Long salonId, Long bookingId, Long userId) {
+		Booking booking = findOwnedBooking(salonId, bookingId, userId);
 		booking.markNoShow();
 		log.info("Booking marked as no-show: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
@@ -180,7 +180,8 @@ public class BookingService {
 		return false;
 	}
 
-	private Booking findBooking(Long salonId, Long bookingId) {
+	private Booking findOwnedBooking(Long salonId, Long bookingId, Long userId) {
+		salonService.findOwnedSalon(salonId, userId);
 		return bookings.findById(bookingId)
 			.filter(booking -> salonId.equals(booking.getSalon().getId()))
 			.orElseThrow(() -> new NotFoundException("Booking " + bookingId + " not found in salon " + salonId));

@@ -50,10 +50,11 @@ class BookingServiceTest {
 	void setUp() {
 		Clock clock = Clock.fixed(FixedClockConfiguration.NOW.toInstant(), FixedClockConfiguration.NOW.getZone());
 		AppProperties properties = new AppProperties(ZoneId.of("Africa/Johannesburg"),
-				new AppProperties.Booking(Duration.ofMinutes(15)));
+				new AppProperties.Booking(Duration.ofMinutes(15)),
+				new AppProperties.Security(null, Duration.ofHours(1)));
 		bookingService = new BookingService(bookings, salonService, clock, properties);
 
-		Salon salon = new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)));
+		Salon salon = new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)), 1L);
 		ReflectionTestUtils.setField(salon, "id", 1L);
 		ServiceOffering haircut = new ServiceOffering(salon, "Haircut", Duration.ofMinutes(35), null, null);
 		ReflectionTestUtils.setField(haircut, "id", 2L);
