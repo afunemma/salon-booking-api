@@ -1,6 +1,9 @@
 package io.github.afunemma.salonbooking.salon;
 
 import java.time.LocalTime;
+import java.util.Objects;
+
+import org.jspecify.annotations.Nullable;
 
 import io.github.afunemma.salonbooking.booking.OpeningHours;
 import jakarta.persistence.Column;
@@ -16,7 +19,7 @@ public class Salon {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private @Nullable Long id;
 
 	@Column(nullable = false)
 	private String name;
@@ -37,8 +40,9 @@ public class Salon {
 		this.closesAt = hours.close();
 	}
 
+	/** Only available once saved; the database assigns the id. */
 	public Long getId() {
-		return id;
+		return Objects.requireNonNull(id, "not saved yet");
 	}
 
 	public String getName() {

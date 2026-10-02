@@ -11,6 +11,8 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.ServerErrorMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
@@ -91,7 +93,13 @@ class BookingRepositoryTest {
 		assertThatThrownBy(() -> bookings
 				.saveAndFlush(new Booking(haircut, "Sipho", "0820000002", MONDAY, LocalTime.of(10, 15))))
 				.isInstanceOf(DataIntegrityViolationException.class)
-				.hasMessageContaining("booking_no_overlap");
+				// BookingService relies on this SQL error code and constraint name to recognise overlaps.
+				.rootCause()
+				.isInstanceOfSatisfying(PSQLException.class, psql -> {
+					assertThat(psql.getSQLState()).isEqualTo("23P01");
+					assertThat(psql.getServerErrorMessage()).isNotNull()
+							.extracting(ServerErrorMessage::getConstraint).isEqualTo("booking_no_overlap");
+				});
 	}
 
 	@Test

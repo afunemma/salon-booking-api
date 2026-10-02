@@ -3,6 +3,8 @@ package io.github.afunemma.salonbooking.salon;
 import java.time.Duration;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,8 @@ import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
 @Transactional(readOnly = true)
 public class SalonService {
 
+	private static final Logger log = LoggerFactory.getLogger(SalonService.class);
+
 	private final SalonRepository salons;
 	private final ServiceOfferingRepository services;
 
@@ -28,7 +32,9 @@ public class SalonService {
 	@Transactional
 	public SalonResponse createSalon(CreateSalonRequest request) {
 		OpeningHours hours = new OpeningHours(request.opensAt(), request.closesAt());
-		return SalonResponse.from(salons.save(new Salon(request.name(), hours)));
+		Salon salon = salons.save(new Salon(request.name(), hours));
+		log.info("Salon created: id={}", salon.getId());
+		return SalonResponse.from(salon);
 	}
 
 	public SalonResponse getSalon(Long salonId) {
@@ -40,7 +46,10 @@ public class SalonService {
 		Salon salon = findSalon(salonId);
 		ServiceOffering service = new ServiceOffering(salon, request.name(),
 				Duration.ofMinutes(request.durationMinutes()), request.priceFromCents(), request.priceToCents());
-		return ServiceResponse.from(services.save(service));
+		services.save(service);
+		log.info("Service added: id={} salon={} duration={}min", service.getId(), salonId,
+				service.getDuration().toMinutes());
+		return ServiceResponse.from(service);
 	}
 
 	public List<ServiceResponse> listServices(Long salonId) {
@@ -64,7 +73,7 @@ public class SalonService {
 	/** Finds a service and checks it belongs to the given salon, so one salon can't book another's services. */
 	public ServiceOffering findService(Long salonId, Long serviceId) {
 		return services.findById(serviceId)
-				.filter(service -> service.getSalon().getId().equals(salonId))
+				.filter(service -> salonId.equals(service.getSalon().getId()))
 				.orElseThrow(() -> new NotFoundException("Service " + serviceId + " not found in salon " + salonId));
 	}
 }

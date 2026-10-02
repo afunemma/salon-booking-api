@@ -47,19 +47,19 @@ You need Java 25 or newer and Docker.
 
 | Method | Endpoint | What it does |
 |---|---|---|
-| `POST` | `/api/salons` | Create a salon with opening hours |
-| `GET` | `/api/salons/{salonId}` | Get a salon |
-| `POST` | `/api/salons/{salonId}/services` | Add a service, e.g. a 35-minute haircut at R50–R100 |
-| `GET` | `/api/salons/{salonId}/services` | List a salon's services |
-| `GET` | `/api/salons/{salonId}/free-slots?serviceId=&date=` | Free start times for a service on a date |
-| `POST` | `/api/salons/{salonId}/bookings` | Book a free slot |
-| `GET` | `/api/salons/{salonId}/bookings?date=` | The salon's day view |
-| `POST` | `/api/salons/{salonId}/bookings/{bookingId}/cancel` · `/complete` · `/no-show` | Update a booking |
+| `POST` | `/api/v1/salons` | Create a salon with opening hours |
+| `GET` | `/api/v1/salons/{salonId}` | Get a salon |
+| `POST` | `/api/v1/salons/{salonId}/services` | Add a service, e.g. a 35-minute haircut at R50–R100 |
+| `GET` | `/api/v1/salons/{salonId}/services` | List a salon's services |
+| `GET` | `/api/v1/salons/{salonId}/free-slots?serviceId=&date=` | Free start times for a service on a date |
+| `POST` | `/api/v1/salons/{salonId}/bookings` | Book a free slot |
+| `GET` | `/api/v1/salons/{salonId}/bookings?date=` | The salon's day view |
+| `POST` | `/api/v1/salons/{salonId}/bookings/{bookingId}/cancel` · `/complete` · `/no-show` | Update a booking |
 
 Example: book a haircut.
 
 ```bash
-curl -X POST localhost:8080/api/salons/1/bookings -H 'Content-Type: application/json' \
+curl -X POST localhost:8080/api/v1/salons/1/bookings -H 'Content-Type: application/json' \
   -d '{"serviceId": 1, "clientName": "Thabo", "clientPhone": "082 123 4567", "date": "2030-01-07", "startTime": "10:00"}'
 ```
 
@@ -82,6 +82,11 @@ Errors use the standard [RFC 9457 Problem Details](https://www.rfc-editor.org/rf
 - **Layers:** controller (HTTP) → service (business rules, transactions) → repository (database). Controllers never touch entities; they use request and response records, so the database can change without breaking API clients.
 - **Business rules are checked on the server:** no bookings in the past, only times the salon actually offers, and a salon can only use its own services and bookings.
 - **Time zone:** "today" and "now" come from an injected `Clock` set to `Africa/Johannesburg`, so the rules stay correct on a UTC server and tests can freeze time.
+- **Versioned API:** all endpoints live under `/api/v1`, so a future `/api/v2` can change the contract without breaking existing clients.
+- **Errors:** only the application's own exceptions (e.g. `SlotUnavailableException`) become 4xx responses. Anything unexpected is logged in full and returns a generic 500, so bugs aren't disguised as client mistakes and internal details never leak.
+- **Typed configuration:** all `app.*` settings bind to one validated record (`AppProperties`). An invalid value such as `app.booking.slot-step=0m` stops the app at startup.
+- **Null safety:** every package is `@NullMarked` ([JSpecify](https://jspecify.dev)), so anything that can be null is explicitly marked `@Nullable`, and the IDE warns about possible `NullPointerException`s.
+- **Logging without personal data:** bookings, cancellations and no-shows are logged by id. Client names and phone numbers are never logged, in line with South Africa's POPIA privacy law.
 
 ## How free slots are found
 

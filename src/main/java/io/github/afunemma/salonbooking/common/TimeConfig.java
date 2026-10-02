@@ -1,9 +1,7 @@
 package io.github.afunemma.salonbooking.common;
 
 import java.time.Clock;
-import java.time.ZoneId;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,7 +16,7 @@ import org.springframework.context.annotation.Configuration;
 class TimeConfig {
 
 	@Bean
-	Clock clock(@Value("${app.time-zone}") String timeZone) {
-		return Clock.system(ZoneId.of(timeZone));
+	Clock clock(AppProperties properties) {
+		return Clock.system(properties.timeZone());
 	}
 }

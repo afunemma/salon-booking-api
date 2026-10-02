@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
@@ -20,7 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/salons")
+@RequestMapping("/api/v1/salons")
 @Tag(name = "Salons", description = "Set up a salon and the services it offers")
 class SalonController {
 
@@ -34,7 +35,7 @@ class SalonController {
 	@Operation(summary = "Create a salon")
 	ResponseEntity<SalonResponse> createSalon(@Valid @RequestBody CreateSalonRequest request) {
 		SalonResponse salon = salonService.createSalon(request);
-		return ResponseEntity.created(URI.create("/api/salons/" + salon.id())).body(salon);
+		return ResponseEntity.created(locationOf(salon.id())).body(salon);
 	}
 
 	@GetMapping("/{salonId}")
@@ -48,13 +49,17 @@ class SalonController {
 	ResponseEntity<ServiceResponse> addService(@PathVariable Long salonId,
 			@Valid @RequestBody CreateServiceRequest request) {
 		ServiceResponse service = salonService.addService(salonId, request);
-		return ResponseEntity.created(URI.create("/api/salons/" + salonId + "/services/" + service.id()))
-				.body(service);
+		return ResponseEntity.created(locationOf(service.id())).body(service);
 	}
 
 	@GetMapping("/{salonId}/services")
 	@Operation(summary = "List a salon's services")
 	List<ServiceResponse> listServices(@PathVariable Long salonId) {
 		return salonService.listServices(salonId);
+	}
+
+	/** Builds the new resource's URL from the current request, e.g. POST /api/v1/salons → /api/v1/salons/42. */
+	private static URI locationOf(Long id) {
+		return ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(id).toUri();
 	}
 }

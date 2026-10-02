@@ -6,7 +6,10 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.ServerErrorMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import io.github.afunemma.salonbooking.booking.BookingDtos.BookingResponse;
 import io.github.afunemma.salonbooking.booking.BookingDtos.CreateBookingRequest;
 import io.github.afunemma.salonbooking.booking.BookingDtos.FreeSlotsResponse;
+import io.github.afunemma.salonbooking.common.AppProperties;
 import io.github.afunemma.salonbooking.common.NotFoundException;
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonService;
@@ -23,20 +27,24 @@ import io.github.afunemma.salonbooking.salon.ServiceOffering;
 @Transactional(readOnly = true)
 public class BookingService {
 
+	private static final Logger log = LoggerFactory.getLogger(BookingService.class);
+
 	/** Name of the database constraint that rejects overlapping bookings (see V2 migration). */
 	private static final String OVERLAP_CONSTRAINT = "booking_no_overlap";
+
+	/** PostgreSQL's error code for a broken exclusion constraint. */
+	private static final String EXCLUSION_VIOLATION = "23P01";
 
 	private final BookingRepository bookings;
 	private final SalonService salonService;
 	private final Clock clock;
 	private final Duration slotStep;
 
-	BookingService(BookingRepository bookings, SalonService salonService, Clock clock,
-			@Value("${app.booking.slot-step}") Duration slotStep) {
+	BookingService(BookingRepository bookings, SalonService salonService, Clock clock, AppProperties properties) {
 		this.bookings = bookings;
 		this.salonService = salonService;
 		this.clock = clock;
-		this.slotStep = slotStep;
+		this.slotStep = properties.booking().slotStep();
 	}
 
 	public FreeSlotsResponse findFreeSlots(Long salonId, Long serviceId, LocalDate date) {
@@ -62,7 +70,7 @@ public class BookingService {
 		salonService.lockSalon(salonId);
 		ServiceOffering service = salonService.findService(salonId, request.serviceId());
 		if (request.date().isBefore(LocalDate.now(clock))) {
-			throw new IllegalArgumentException("Bookings can't be made for a date in the past");
+			throw new BookingNotAllowedException("Bookings can't be made for a date in the past");
 		}
 		if (!freeStartTimes(service, request.date()).contains(request.startTime())) {
 			throw new SlotUnavailableException(
@@ -71,15 +79,22 @@ public class BookingService {
 		Booking booking = new Booking(service, request.clientName().strip(), request.clientPhone().strip(),
 				request.date(), request.startTime());
 		try {
-			return BookingResponse.from(bookings.saveAndFlush(booking));
+			bookings.saveAndFlush(booking);
 		}
 		catch (DataIntegrityViolationException ex) {
 			if (isOverlapViolation(ex)) {
-				throw new SlotUnavailableException(request.startTime() + " on " + request.date()
-						+ " was just booked by someone else");
+				// Should be rare: the salon lock normally stops overlaps before they reach the database.
+				log.warn("Overlapping booking rejected by database: salon={} date={} start={}", salonId,
+						request.date(), request.startTime());
+				throw new SlotUnavailableException(
+						request.startTime() + " on " + request.date() + " was just booked by someone else");
 			}
 			throw ex;
 		}
+		// Client name and phone number are personal information (POPIA), so they are not logged.
+		log.info("Booking created: id={} salon={} service={} date={} start={}", booking.getId(), salonId,
+				service.getId(), booking.getBookingDate(), booking.getStartTime());
+		return BookingResponse.from(booking);
 	}
 
 	/** The salon's day view: every booking on a date, including cancelled ones and no-shows. */
@@ -94,6 +109,7 @@ public class BookingService {
 	public BookingResponse cancel(Long salonId, Long bookingId) {
 		Booking booking = findBooking(salonId, bookingId);
 		booking.cancel();
+		log.info("Booking cancelled: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
 	}
 
@@ -101,6 +117,7 @@ public class BookingService {
 	public BookingResponse markCompleted(Long salonId, Long bookingId) {
 		Booking booking = findBooking(salonId, bookingId);
 		booking.markCompleted();
+		log.info("Booking completed: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
 	}
 
@@ -108,6 +125,7 @@ public class BookingService {
 	public BookingResponse markNoShow(Long salonId, Long bookingId) {
 		Booking booking = findBooking(salonId, bookingId);
 		booking.markNoShow();
+		log.info("Booking marked as no-show: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
 	}
 
@@ -131,13 +149,24 @@ public class BookingService {
 		return free;
 	}
 
+	/**
+	 * Recognises the overlap error by its SQL error code and constraint name, which are
+	 * stable, rather than by its message text, which can change between versions.
+	 * The name comes from PostgreSQL's own error details, because Hibernate doesn't
+	 * extract it for exclusion constraints.
+	 */
 	private static boolean isOverlapViolation(DataIntegrityViolationException ex) {
-		return ex.getMostSpecificCause().getMessage().contains(OVERLAP_CONSTRAINT);
+		for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+			if (cause instanceof PSQLException psql && psql.getServerErrorMessage() instanceof ServerErrorMessage error) {
+				return EXCLUSION_VIOLATION.equals(psql.getSQLState()) && OVERLAP_CONSTRAINT.equals(error.getConstraint());
+			}
+		}
+		return false;
 	}
 
 	private Booking findBooking(Long salonId, Long bookingId) {
 		return bookings.findById(bookingId)
-				.filter(booking -> booking.getSalon().getId().equals(salonId))
+				.filter(booking -> salonId.equals(booking.getSalon().getId()))
 				.orElseThrow(() -> new NotFoundException("Booking " + bookingId + " not found in salon " + salonId));
 	}
 }
