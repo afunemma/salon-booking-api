@@ -1,0 +1,10 @@
+# Keep the build context small and free of secrets and local files.
+target/
+.git/
+.github/
+.idea/
+*.iml
+.DS_Store
+docs/
+*.md
+compose.yaml
