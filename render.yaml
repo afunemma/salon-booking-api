@@ -1,5 +1,7 @@
 # Render Blueprint: the live demo's hosting, described as code.
-# Render reads this file from the main branch. The database is on Neon (see README).
+# The live service (https://salon-booking-api-wguy.onrender.com) was created in Render's
+# dashboard with exactly these settings, because Render's menu didn't offer Blueprint setup
+# at the time. Keep this file in sync if settings change there. The database is on Neon.
 services:
   - type: web
     name: salon-booking-api
