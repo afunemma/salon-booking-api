@@ -1,0 +1,28 @@
+# Render Blueprint: the live demo's hosting, described as code.
+# Render reads this file from the main branch. The database is on Neon (see README).
+services:
+  - type: web
+    name: salon-booking-api
+    runtime: docker
+    plan: free
+    # Closest Render region to South Africa. Create the Neon database in AWS Frankfurt too.
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /readyz
+    # Deploy a new main-branch commit only after its CI checks have passed.
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod,demo
+      # Entered once in the Render dashboard; never stored in Git.
+      # Use Neon's *direct* (not "-pooler") host, e.g.
+      # jdbc:postgresql://ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      # Render generates a random 256-bit key (44 characters, base64).
+      - key: APP_SECURITY_JWT_SECRET
+        generateValue: true

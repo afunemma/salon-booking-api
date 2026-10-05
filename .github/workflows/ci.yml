@@ -48,3 +48,13 @@ jobs:
           name: coverage-report
           path: target/site/jacoco/
           retention-days: 14
+
+  # Builds the production image (including the AOT cache training run), so a broken
+  # Dockerfile is caught here instead of failing on the hosting platform.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build Docker image
+        run: docker build --tag salon-booking-api:ci .
