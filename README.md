@@ -2,10 +2,24 @@
 
 [![CI](https://github.com/afunemma/salon-booking-api/actions/workflows/ci.yml/badge.svg)](https://github.com/afunemma/salon-booking-api/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/afunemma/salon-booking-api/actions/workflows/codeql/badge.svg)](https://github.com/afunemma/salon-booking-api/security/code-scanning)
+[![Live demo](https://img.shields.io/badge/live%20demo-Swagger%20UI-85EA2D?logo=swagger&logoColor=black)](https://salon-booking-api-wguy.onrender.com/swagger-ui.html)
 
 A REST API that lets clients book appointments at salons (barbers, hair, braids, nails and beauty). It is built with Java and Spring Boot.
 
-> **Status: work in progress.** The REST API, scheduling logic, double-booking protection and owner login are done and tested. Next up: polishing and a live demo (see the [roadmap](#roadmap)).
+## Try it live
+
+**👉 [https://salon-booking-api-wguy.onrender.com/swagger-ui.html](https://salon-booking-api-wguy.onrender.com/swagger-ui.html)**
+
+> ⏳ The demo runs on a free server that sleeps when nobody uses it. If the page doesn't load straight away, give it **up to 3 minutes** to wake up; after that it responds in under a second.
+
+A 2-minute tour in Swagger UI (click an endpoint → **Try it out** → **Execute**):
+
+1. **See free times as a client:** `GET /api/v1/salons/{salonId}/free-slots` with `salonId` **1** (the Demo Salon), `serviceId` **1**, and tomorrow's date.
+2. **Book one, without an account:** `POST /api/v1/salons/1/bookings` with one of those times. Book the same time again to see the `409 Slot unavailable` response.
+3. **Become a salon owner:** `POST /api/v1/auth/register`, then `POST /api/v1/auth/login`. Copy the `accessToken`, click **Authorize** 🔒 at the top of the page, and paste it in.
+4. **Manage your own salon:** create one (`POST /api/v1/salons`), add a service, book it, and open your day view (`GET .../bookings`). Then try the Demo Salon's day view: you get `403 Forbidden`, because it isn't yours.
+
+Demo data may be reset at any time. Please don't enter real personal information.
 
 ## Why this project
 
@@ -296,7 +310,7 @@ The live demo runs on free plans: the app on [Render](https://render.com) and Po
   - runs as a non-root user
   - a Java 25 AOT cache created by a training run during the build, so startup is about 25% faster on a small CPU
   - tuned to fit 512 MB
-- **`render.yaml`:** the hosting described as code (a Render Blueprint). New `main` commits deploy only after CI passes.
+- **`render.yaml`:** the exact Render settings, as code. The live service was created in Render's dashboard with these values, because Render's menu didn't offer Blueprint setup at the time. New `main` commits deploy only after CI passes.
 - **The `prod` profile:** settings come from environment variables:
 
   | Variable | Value |
@@ -343,7 +357,7 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] Specific error types, structured logging without personal data, typed config (PR #1)
 - [x] Architecture tests, coverage minimums, formatting and ADRs (PR #2)
 - [x] Architecture diagrams, business metrics (Prometheus) and login rate limiting
-- [x] Docker image and deployment setup for Render + Neon (live demo link coming soon)
+- [x] Docker image and live demo on Render + Neon ([try it](https://salon-booking-api-wguy.onrender.com/swagger-ui.html))
 
 ## Security
 
