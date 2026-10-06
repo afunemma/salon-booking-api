@@ -46,7 +46,7 @@ Measured locally with `docker run --cpus=0.1 --memory=512m`:
 
 ## Consequences
 
-- **Cold starts take about 3 minutes** on 0.1 CPU after the app has slept. Mitigation: an external uptime monitor calls `/readyz` every 5 minutes. That keeps the app awake (744 hours a month at most, within Render's 750 free hours) and emails an alert if the demo goes down. `/readyz` doesn't touch the database, so Neon can still sleep.
+- **Cold starts take about 3 minutes** on 0.1 CPU after the app has slept. Mitigation: an external uptime monitor (UptimeRobot, set up on 2026-10-06) calls `/livez` every 5 minutes. That keeps the app awake (744 hours a month at most, within Render's 750 free hours) and emails an alert if the demo goes down. `/livez` only checks that the app process is running and never touches the database, so Neon can still sleep.
 - **Requests are fast once the app is running:** about 0.4 s measured.
 - **Metrics port 9090 stays private:** Render routes public traffic only to the `PORT` port. Other ports are reachable only on Render's private network.
 - **Client IPs:** with `server.forward-headers-strategy=native`, Tomcat takes the client IP from `X-Forwarded-For` but trusts only proxies on internal networks, so clients can't fake their IP to get around the per-IP login limit.
