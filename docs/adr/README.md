@@ -14,3 +14,4 @@ New decisions get the next number. If a decision is later replaced, its status b
 | [0006](0006-stateless-jwt-auth-for-owners-only.md) | Stateless JWT login for salon owners; clients book without an account | Accepted |
 | [0007](0007-in-memory-login-rate-limiting.md) | Rate-limit login attempts in memory | Accepted |
 | [0008](0008-free-hosting-on-render-and-neon.md) | Host the live demo on Render and Neon free plans | Accepted |
+| [0009](0009-evening-reminders-with-a-scheduled-job.md) | Send evening-before reminders with a scheduled job | Accepted |

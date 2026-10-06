@@ -17,9 +17,9 @@ class AppPropertiesTest {
 	private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(Config.class);
 
 	private static final String[] VALID = { "app.time-zone=Africa/Johannesburg", "app.booking.slot-step=15m",
-			"app.security.token-lifetime=1h", "app.security.login-attempts-per-ip.attempts=20",
-			"app.security.login-attempts-per-ip.window=1m", "app.security.failed-logins-per-email.attempts=5",
-			"app.security.failed-logins-per-email.window=15m" };
+			"app.reminders.cron=0 0 18-21 * * *", "app.security.token-lifetime=1h",
+			"app.security.login-attempts-per-ip.attempts=20", "app.security.login-attempts-per-ip.window=1m",
+			"app.security.failed-logins-per-email.attempts=5", "app.security.failed-logins-per-email.window=15m" };
 
 	@Test
 	void bindsValidSettings() {
@@ -27,6 +27,7 @@ class AppPropertiesTest {
 			AppProperties properties = context.getBean(AppProperties.class);
 			assertThat(properties.timeZone()).isEqualTo(ZoneId.of("Africa/Johannesburg"));
 			assertThat(properties.booking().slotStep()).isEqualTo(Duration.ofMinutes(15));
+			assertThat(properties.reminders().cron()).isEqualTo("0 0 18-21 * * *");
 			assertThat(properties.security().jwtSecret()).isNull();
 			assertThat(properties.security().tokenLifetime()).isEqualTo(Duration.ofHours(1));
 		});
@@ -36,6 +37,13 @@ class AppPropertiesTest {
 	void rejectsSlotStepShorterThanAMinute() {
 		runner.withPropertyValues(VALID)
 			.withPropertyValues("app.booking.slot-step=0m")
+			.run(context -> assertThat(context).hasFailed());
+	}
+
+	@Test
+	void rejectsBlankReminderSchedule() {
+		runner.withPropertyValues(VALID)
+			.withPropertyValues("app.reminders.cron=")
 			.run(context -> assertThat(context).hasFailed());
 	}
 

@@ -10,6 +10,7 @@ import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -22,9 +23,17 @@ import jakarta.validation.constraints.Size;
 @Validated
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(@NotNull ZoneId timeZone, @Valid @NotNull Booking booking,
-		@Valid @NotNull Security security) {
+		@Valid @NotNull Reminders reminders, @Valid @NotNull Security security) {
 
 	public record Booking(@NotNull @DurationMin(minutes = 1) Duration slotStep) {
+	}
+
+	/**
+	 * @param cron when the reminder job runs, in salon time, e.g. {@code 0 0 18-21 * * *}
+	 * for every hour from 18:00 to 21:00. {@code -} switches it off. Spring checks the
+	 * cron syntax at startup.
+	 */
+	public record Reminders(@NotBlank String cron) {
 	}
 
 	/**
