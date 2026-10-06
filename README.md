@@ -61,6 +61,7 @@ flowchart LR
         controllers["Controllers<br/>REST /api/v1 · validation"]
         services["Services<br/>business rules · ownership checks<br/>salon lock · metrics"]
         scheduling["SlotFinder<br/>pure Java"]
+        reminders["ReminderJob<br/>18:00–21:00 daily"]
         repositories["Repositories<br/>Spring Data JPA"]
         actuator["Actuator :9090<br/>internal only"]
     end
@@ -72,6 +73,7 @@ flowchart LR
     security --> controllers --> services
     services --> scheduling
     services --> repositories --> db
+    reminders --> repositories
     monitoring -. scrape .-> actuator
 ```
 
@@ -83,6 +85,7 @@ Dependencies point one way only, enforced by [`ArchitectureTest`](src/test/java/
 
 ```mermaid
 flowchart LR
+    reminder --> booking
     booking --> salon --> scheduling
     booking --> scheduling
     account --> common
@@ -122,6 +125,7 @@ erDiagram
     salon ||--o{ service_offering : offers
     salon ||--o{ booking : has
     service_offering ||--o{ booking : "booked as"
+    booking ||--o| booking_reminder : "reminded by"
 
     app_user {
         bigint id PK
@@ -153,6 +157,14 @@ erDiagram
         time start_time
         time end_time
         varchar status "BOOKED, CANCELLED, COMPLETED, NO_SHOW"
+    }
+    booking_reminder {
+        bigint id PK
+        bigint booking_id FK "unique"
+        varchar status "SENT, FAILED"
+        int attempts
+        timestamptz last_attempt_at
+        timestamptz sent_at "set once sent"
     }
 ```
 
@@ -244,6 +256,21 @@ Edge cases covered by tests:
 - long services that only fit in big gaps (5-hour braids)
 - late opening hours that must not wrap past midnight
 
+## Appointment reminders
+
+Clients get a reminder **the evening before** their appointment, to cut no-shows without the salon doing anything ([ADR-0009](docs/adr/0009-evening-reminders-with-a-scheduled-job.md)).
+
+> Hi Thabo, a reminder of your Haircut at Sipho's Cuts tomorrow, Monday 7 January, at 10:00. If you can't make it, please let the salon know.
+
+- **When:** a scheduled job runs every hour from **18:00 to 21:00** (salon time) and reminds each client with an active booking tomorrow who hasn't been reminded yet.
+- **Never twice, never lost:**
+  - Every attempt is recorded in `booking_reminder`, which allows one row per booking.
+  - A failed send is retried on the next run, and one failure doesn't stop the others.
+- **No transaction during sending:** messages are sent between short database transactions, so a slow provider never holds a connection.
+- **Delivery channel:** behind a `ReminderSender` interface. For now `LoggingReminderSender` only logs the reminder (booking id and the last 3 phone digits). WhatsApp or SMS costs money per message and will be a separate implementation.
+- **Free-plan friendly:** the job queries the database only 4 times a day, so Neon can sleep.
+- **Tests:** [`ReminderJobIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/reminder/ReminderJobIntegrationTest.java) runs the job against real PostgreSQL. It checks the message text, that cancelled and later bookings are skipped, that a second run sends nothing, and that a failed send is retried.
+
 ## Database design
 
 The schema lives in versioned Flyway migrations (`src/main/resources/db/migration`). Hibernate only *validates* that the entities match it, and never changes the database itself.
@@ -297,6 +324,7 @@ Business metrics are exported in Prometheus format on an **internal port (9090)*
 | `salon_bookings_made_total` | Booking volume |
 | `salon_bookings_rejected_total{reason}` | Clients who couldn't get the slot they wanted (`slot_unavailable`, `slot_taken_concurrently`, `date_in_past`) |
 | `salon_bookings_status_changed_total{status}` | Cancellations, completions and **no-shows**, the problem salons said costs them the most |
+| `salon_reminders_total{result}` | Reminders `sent` or `failed`. Repeated failures mean the messaging channel is down |
 | `salon_auth_logins_total{result}` | `success`, `failure`, `rate_limited`. A spike in failures or rate limits is a sign of password guessing |
 
 Liveness and readiness checks (`/livez`, `/readyz`) are public on the main port for the hosting platform.
@@ -353,7 +381,9 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] REST API for salons, services, free slots and bookings, with OpenAPI docs
 - [x] Prevent double bookings when two clients book the same slot at once (lock + exclusion constraint, with a concurrency test)
 - [x] Owner login (JWT), with each salon's data visible only to its owner. Clients book without an account
-- [ ] Clients cancel their own booking from a link
+- [x] Evening-before appointment reminders, retried on failure (delivery channel still a stand-in)
+- [ ] Clients cancel their own booking from a link in the reminder
+- [ ] Deliver reminders by WhatsApp or SMS
 - [ ] Staff members with their own schedules
 - [x] Specific error types, structured logging without personal data, typed config (PR #1)
 - [x] Architecture tests, coverage minimums, formatting and ADRs (PR #2)

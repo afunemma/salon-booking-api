@@ -54,7 +54,7 @@ class BookingServiceTest {
 	void setUp() {
 		Clock clock = Clock.fixed(FixedClockConfiguration.NOW.toInstant(), FixedClockConfiguration.NOW.getZone());
 		AppProperties properties = new AppProperties(ZoneId.of("Africa/Johannesburg"),
-				new AppProperties.Booking(Duration.ofMinutes(15)),
+				new AppProperties.Booking(Duration.ofMinutes(15)), new AppProperties.Reminders("-"),
 				new AppProperties.Security(null, Duration.ofHours(1),
 						new AppProperties.RateLimit(20, Duration.ofMinutes(1)),
 						new AppProperties.RateLimit(5, Duration.ofMinutes(15))));
