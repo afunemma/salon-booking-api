@@ -16,7 +16,8 @@ class AppPropertiesTest {
 
 	private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(Config.class);
 
-	private static final String[] VALID = { "app.time-zone=Africa/Johannesburg", "app.booking.slot-step=15m",
+	private static final String[] VALID = { "app.time-zone=Africa/Johannesburg",
+			"app.public-base-url=https://salon.example.com", "app.booking.slot-step=15m",
 			"app.reminders.cron=0 0 18-21 * * *", "app.security.token-lifetime=1h",
 			"app.security.login-attempts-per-ip.attempts=20", "app.security.login-attempts-per-ip.window=1m",
 			"app.security.failed-logins-per-email.attempts=5", "app.security.failed-logins-per-email.window=15m" };
@@ -44,6 +45,13 @@ class AppPropertiesTest {
 	void rejectsBlankReminderSchedule() {
 		runner.withPropertyValues(VALID)
 			.withPropertyValues("app.reminders.cron=")
+			.run(context -> assertThat(context).hasFailed());
+	}
+
+	@Test
+	void rejectsCancelLinkSecretShorterThan32Characters() {
+		runner.withPropertyValues(VALID)
+			.withPropertyValues("app.security.cancel-link-secret=too-short")
 			.run(context -> assertThat(context).hasFailed());
 	}
 

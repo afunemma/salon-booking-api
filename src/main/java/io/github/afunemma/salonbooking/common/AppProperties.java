@@ -1,5 +1,6 @@
 package io.github.afunemma.salonbooking.common;
 
+import java.net.URI;
 import java.time.Duration;
 import java.time.ZoneId;
 
@@ -22,7 +23,7 @@ import jakarta.validation.constraints.Size;
  */
 @Validated
 @ConfigurationProperties(prefix = "app")
-public record AppProperties(@NotNull ZoneId timeZone, @Valid @NotNull Booking booking,
+public record AppProperties(@NotNull ZoneId timeZone, @NotNull URI publicBaseUrl, @Valid @NotNull Booking booking,
 		@Valid @NotNull Reminders reminders, @Valid @NotNull Security security) {
 
 	public record Booking(@NotNull @DurationMin(minutes = 1) Duration slotStep) {
@@ -41,11 +42,15 @@ public record AppProperties(@NotNull ZoneId timeZone, @Valid @NotNull Booking bo
 	 * the {@code APP_SECURITY_JWT_SECRET} environment variable, never in a committed
 	 * file. If empty, a random key is generated at startup, so tokens stop working after
 	 * a restart.
+	 * @param cancelLinkSecret key that signs clients' cancel links; at least 32
+	 * characters. Set it with {@code APP_SECURITY_CANCEL_LINK_SECRET}. If empty, a random
+	 * key is generated at startup, so links sent before a restart stop working.
 	 * @param tokenLifetime how long a login token stays valid
 	 * @param loginAttemptsPerIp all login attempts allowed from one IP address
 	 * @param failedLoginsPerEmail failed login attempts allowed for one email
 	 */
 	public record Security(@Nullable @Size(min = 32) String jwtSecret,
+			@Nullable @Size(min = 32) String cancelLinkSecret,
 			@NotNull @DurationMin(minutes = 1) Duration tokenLifetime, @Valid @NotNull RateLimit loginAttemptsPerIp,
 			@Valid @NotNull RateLimit failedLoginsPerEmail) {
 	}

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!--/* The link contains the client's token: don't send it to other sites, don't index it. */-->
+    <meta name="referrer" content="no-referrer">
+    <meta name="robots" content="noindex">
+    <title>Your booking</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <!--/* th:text escapes everything, so a name like "<script>" is shown as text, never run. */-->
+    <h1 th:text="|Hi ${booking.clientName}|">Hi Thabo</h1>
+    <p class="appointment">
+        <strong th:text="${booking.serviceName}">Haircut</strong> at
+        <strong th:text="${booking.salonName}">Sipho's Cuts</strong><br>
+        <span th:text="${#temporals.format(booking.date, 'EEEE d MMMM yyyy')}">Monday 7 January 2030</span>
+        at <span th:text="${#temporals.format(booking.startTime, 'HH:mm')}">10:00</span>
+    </p>
+
+    <th:block th:if="${booking.canCancel()}">
+        <p>Can't make it? Cancel so someone else can have the slot.</p>
+        <form method="post" th:action="@{/bookings/{id}/cancel(id=${booking.bookingId})}">
+            <input type="hidden" name="token" th:value="${booking.token}">
+            <button type="submit">Cancel my booking</button>
+        </form>
+    </th:block>
+    <p th:if="${booking.isCancelled()}" class="done">This booking is cancelled. Thank you for letting the salon know.</p>
+    <p th:if="${booking.state.name() == 'TOO_LATE'}">
+        This booking can't be cancelled online any more. Please contact the salon.
+    </p>
+</main>
+</body>
+</html>

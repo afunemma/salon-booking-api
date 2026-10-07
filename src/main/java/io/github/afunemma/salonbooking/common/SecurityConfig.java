@@ -23,7 +23,8 @@ import tools.jackson.databind.json.JsonMapper;
  * Who may call what.
  * <ul>
  * <li><b>Anyone:</b> register, log in, view a salon and its services, see free slots, and
- * book. Clients don't need an account.</li>
+ * book, and cancel their own booking from the signed link in their reminder. Clients
+ * don't need an account.</li>
  * <li><b>Logged-in owners:</b> everything else, such as creating salons, adding services,
  * the day view and changing bookings. Whether the user owns that particular salon is
  * checked in the service layer.</li>
@@ -56,6 +57,10 @@ class SecurityConfig {
 						"/api/v1/salons/*/free-slots")
 				.permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/salons/*/bookings")
+				.permitAll()
+				// The client's cancel page. The signed token in the link is the
+				// permission, checked in BookingService.
+				.requestMatchers("/bookings/*/cancel")
 				.permitAll()
 				.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/health/**",
 						"/livez", "/readyz")

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Shared by the client pages. Kept small and inline: no external files to load. */-->
+    <style th:fragment="style">
+        body { margin: 0; font-family: system-ui, sans-serif; background: #f6f6f4; color: #1f1f1f; }
+        main { max-width: 28rem; margin: 2rem auto; padding: 1.5rem; background: #fff; border-radius: 12px; }
+        h1 { font-size: 1.4rem; margin-top: 0; }
+        .appointment { font-size: 1.1rem; line-height: 1.6; }
+        .done { color: #1d6b3a; font-weight: 600; }
+        button { width: 100%; padding: 0.9rem; font-size: 1rem; border: 0; border-radius: 8px;
+                 background: #b3261e; color: #fff; cursor: pointer; }
+        @media (prefers-color-scheme: dark) {
+            body { background: #121212; color: #eee; }
+            main { background: #1e1e1e; }
+            .done { color: #7fd69a; }
+        }
+    </style>
+</head>
+</html>

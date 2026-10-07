@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import io.github.afunemma.salonbooking.booking.Booking;
+import io.github.afunemma.salonbooking.booking.CancelLinks;
 import io.micrometer.core.instrument.MeterRegistry;
 
 /**
@@ -49,20 +50,23 @@ class ReminderJob {
 
 	private final MeterRegistry meters;
 
+	private final CancelLinks cancelLinks;
+
 	ReminderJob(BookingReminderRepository reminders, ReminderSender sender, TransactionTemplate transactions,
-			Clock clock, MeterRegistry meters) {
+			Clock clock, MeterRegistry meters, CancelLinks cancelLinks) {
 		this.reminders = reminders;
 		this.sender = sender;
 		this.transactions = transactions;
 		this.clock = clock;
 		this.meters = meters;
+		this.cancelLinks = cancelLinks;
 	}
 
 	@Scheduled(cron = "${app.reminders.cron}", zone = "${app.time-zone}")
 	void sendTomorrowsReminders() {
 		LocalDate tomorrow = LocalDate.now(clock).plusDays(1);
-		List<ReminderMessage> due = Objects.requireNonNull(transactions.execute(
-				status -> reminders.findBookingsToRemind(tomorrow).stream().map(ReminderJob::messageFor).toList()));
+		List<ReminderMessage> due = Objects.requireNonNull(transactions
+			.execute(status -> reminders.findBookingsToRemind(tomorrow).stream().map(this::messageFor).toList()));
 		int sent = 0;
 		for (ReminderMessage message : due) {
 			boolean delivered = deliver(message);
@@ -95,10 +99,14 @@ class ReminderJob {
 					() -> reminders.save(new BookingReminder(bookingId, clock.instant(), delivered)));
 	}
 
-	static ReminderMessage messageFor(Booking booking) {
-		String text = "Hi %s, a reminder of your %s at %s tomorrow, %s, at %s. If you can't make it, please let the salon know."
+	/**
+	 * The cancel link lets a client who can't come free the slot for someone else,
+	 * instead of becoming a no-show.
+	 */
+	private ReminderMessage messageFor(Booking booking) {
+		String text = "Hi %s, a reminder of your %s at %s tomorrow, %s, at %s. Can't make it? Cancel here so someone else can have the slot: %s"
 			.formatted(booking.getClientName(), booking.getService().getName(), booking.getSalon().getName(),
-					DAY.format(booking.getBookingDate()), booking.getStartTime());
+					DAY.format(booking.getBookingDate()), booking.getStartTime(), cancelLinks.urlFor(booking.getId()));
 		return new ReminderMessage(booking.getId(), booking.getClientPhone(), text);
 	}
 

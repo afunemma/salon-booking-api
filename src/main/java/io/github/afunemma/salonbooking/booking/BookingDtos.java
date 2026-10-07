@@ -4,6 +4,10 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -23,13 +27,22 @@ public final class BookingDtos {
 			@NotNull LocalDate date, @NotNull LocalTime startTime) {
 	}
 
+	/**
+	 * @param cancelUrl the client's own cancel link. Only included in the response to the
+	 * client who just booked; the owner's day view leaves it out.
+	 */
 	public record BookingResponse(Long id, Long serviceId, String serviceName, String clientName, String clientPhone,
-			LocalDate date, LocalTime startTime, LocalTime endTime, BookingStatus status) {
+			LocalDate date, LocalTime startTime, LocalTime endTime, BookingStatus status,
+			@JsonInclude(JsonInclude.Include.NON_NULL) @Nullable String cancelUrl) {
 
 		static BookingResponse from(Booking booking) {
+			return withCancelUrl(booking, null);
+		}
+
+		static BookingResponse withCancelUrl(Booking booking, @Nullable String cancelUrl) {
 			return new BookingResponse(booking.getId(), booking.getService().getId(), booking.getService().getName(),
 					booking.getClientName(), booking.getClientPhone(), booking.getBookingDate(), booking.getStartTime(),
-					booking.getEndTime(), booking.getStatus());
+					booking.getEndTime(), booking.getStatus(), cancelUrl);
 		}
 	}
 

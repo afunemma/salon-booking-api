@@ -3,9 +3,11 @@ package io.github.afunemma.salonbooking.booking;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.ServerErrorMessage;
@@ -55,11 +57,14 @@ public class BookingService {
 
 	private final Counter bookingsMade;
 
+	private final CancelLinks cancelLinks;
+
 	BookingService(BookingRepository bookings, SalonService salonService, Clock clock, AppProperties properties,
-			MeterRegistry meters) {
+			MeterRegistry meters, CancelLinks cancelLinks) {
 		this.bookings = bookings;
 		this.salonService = salonService;
 		this.clock = clock;
+		this.cancelLinks = cancelLinks;
 		this.slotStep = properties.booking().slotStep();
 		this.meters = meters;
 		this.bookingsMade = Counter.builder("salon.bookings.made")
@@ -120,7 +125,7 @@ public class BookingService {
 		bookingsMade.increment();
 		log.info("Booking created: id={} salon={} service={} date={} start={}", booking.getId(), salonId,
 				service.getId(), booking.getBookingDate(), booking.getStartTime());
-		return BookingResponse.from(booking);
+		return BookingResponse.withCancelUrl(booking, cancelLinks.urlFor(booking.getId()));
 	}
 
 	/**
@@ -160,6 +165,51 @@ public class BookingService {
 		countStatusChange(booking);
 		log.info("Booking marked as no-show: id={} salon={}", bookingId, salonId);
 		return BookingResponse.from(booking);
+	}
+
+	/**
+	 * The booking behind a client's cancel link, or empty if the link is wrong. A wrong
+	 * token and an unknown booking look the same, so links can't be used to discover
+	 * which bookings exist.
+	 */
+	public Optional<ClientBookingView> findForClient(Long bookingId, String token) {
+		if (!cancelLinks.isValid(bookingId, token)) {
+			return Optional.empty();
+		}
+		return bookings.findById(bookingId).map(booking -> clientView(booking, token));
+	}
+
+	/**
+	 * Cancels a booking from the client's link, if it is still active and in the future.
+	 * Cancelling twice is harmless: the second time nothing changes.
+	 */
+	@Transactional
+	public Optional<ClientBookingView> cancelByClient(Long bookingId, String token) {
+		if (!cancelLinks.isValid(bookingId, token)) {
+			return Optional.empty();
+		}
+		return bookings.findById(bookingId).map(booking -> {
+			if (clientState(booking) == ClientBookingView.State.CAN_CANCEL) {
+				booking.cancel();
+				countStatusChange(booking);
+				log.info("Booking cancelled by client: id={} salon={}", bookingId, booking.getSalon().getId());
+			}
+			return clientView(booking, token);
+		});
+	}
+
+	private ClientBookingView clientView(Booking booking, String token) {
+		return new ClientBookingView(booking.getId(), token, booking.getClientName(), booking.getService().getName(),
+				booking.getSalon().getName(), booking.getBookingDate(), booking.getStartTime(), clientState(booking));
+	}
+
+	private ClientBookingView.State clientState(Booking booking) {
+		return switch (booking.getStatus()) {
+			case CANCELLED -> ClientBookingView.State.CANCELLED;
+			case COMPLETED, NO_SHOW -> ClientBookingView.State.TOO_LATE;
+			case BOOKED -> booking.getBookingDate().atTime(booking.getStartTime()).isAfter(LocalDateTime.now(clock))
+					? ClientBookingView.State.CAN_CANCEL : ClientBookingView.State.TOO_LATE;
+		};
 	}
 
 	private void countRejected(String reason) {

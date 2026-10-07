@@ -26,6 +26,7 @@ import io.github.afunemma.salonbooking.account.AppUser;
 import io.github.afunemma.salonbooking.account.AppUserRepository;
 import io.github.afunemma.salonbooking.booking.Booking;
 import io.github.afunemma.salonbooking.booking.BookingRepository;
+import io.github.afunemma.salonbooking.booking.CancelLinks;
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonRepository;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
@@ -70,6 +71,9 @@ class ReminderJobIntegrationTest {
 	@Autowired
 	private MeterRegistry meters;
 
+	@Autowired
+	private CancelLinks cancelLinks;
+
 	private ServiceOffering haircut;
 
 	@BeforeEach
@@ -96,7 +100,8 @@ class ReminderJobIntegrationTest {
 		assertThat(thabo).as("sent once, not again on the second run").hasSize(1);
 		assertThat(thabo.getFirst().phone()).isEqualTo("082 123 4567");
 		assertThat(thabo.getFirst().text()).isEqualTo(
-				"Hi Thabo, a reminder of your Haircut at Sipho's Cuts tomorrow, Monday 7 January, at 10:00. If you can't make it, please let the salon know.");
+				"Hi Thabo, a reminder of your Haircut at Sipho's Cuts tomorrow, Monday 7 January, at 10:00. Can't make it? Cancel here so someone else can have the slot: "
+						+ cancelLinks.urlFor(tomorrow.getId()));
 		assertThat(messagesFor(dayAfter)).as("not tomorrow").isEmpty();
 		assertThat(messagesFor(cancelled)).as("cancelled").isEmpty();
 
