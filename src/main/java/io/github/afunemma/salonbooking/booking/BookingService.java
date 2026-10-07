@@ -5,8 +5,11 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 import org.postgresql.util.PSQLException;
@@ -20,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import io.github.afunemma.salonbooking.booking.BookingDtos.BookingResponse;
 import io.github.afunemma.salonbooking.booking.BookingDtos.CreateBookingRequest;
 import io.github.afunemma.salonbooking.booking.BookingDtos.FreeSlotsResponse;
+import io.github.afunemma.salonbooking.booking.BookingDtos.NoShowStatsResponse;
 import io.github.afunemma.salonbooking.common.AppProperties;
 import io.github.afunemma.salonbooking.common.NotFoundException;
 import io.github.afunemma.salonbooking.salon.Salon;
@@ -58,6 +62,12 @@ public class BookingService {
 	private final Counter bookingsMade;
 
 	private final CancelLinks cancelLinks;
+
+	/**
+	 * Longest range for no-show statistics: a year, so one request can't make the
+	 * database count years of bookings.
+	 */
+	private static final int MAX_STATS_DAYS = 366;
 
 	BookingService(BookingRepository bookings, SalonService salonService, Clock clock, AppProperties properties,
 			MeterRegistry meters, CancelLinks cancelLinks) {
@@ -138,6 +148,38 @@ public class BookingService {
 			.stream()
 			.map(BookingResponse::from)
 			.toList();
+	}
+
+	/**
+	 * The salon's no-show rate over a date range (owner only), e.g. to see whether
+	 * reminders reduce no-shows.
+	 */
+	public NoShowStatsResponse noShowStats(Long salonId, Long userId, LocalDate from, LocalDate to) {
+		salonService.findOwnedSalon(salonId, userId);
+		if (to.isBefore(from)) {
+			throw new InvalidDateRangeException("'to' (" + to + ") is before 'from' (" + from + ")");
+		}
+		if (ChronoUnit.DAYS.between(from, to) >= MAX_STATS_DAYS) {
+			throw new InvalidDateRangeException("A range can be at most " + MAX_STATS_DAYS + " days");
+		}
+		Map<BookingStatus, Long> counts = new EnumMap<>(BookingStatus.class);
+		bookings.countByStatus(salonId, from, to).forEach(row -> counts.put(row.getStatus(), row.getCount()));
+		return NoShowStatsResponse.of(from, to, counts.getOrDefault(BookingStatus.COMPLETED, 0L),
+				counts.getOrDefault(BookingStatus.NO_SHOW, 0L), counts.getOrDefault(BookingStatus.CANCELLED, 0L),
+				countNotMarked(salonId, from, to));
+	}
+
+	/**
+	 * Bookings before today that are still {@code BOOKED}. Today's and future bookings
+	 * can't have an outcome yet, so they don't count.
+	 */
+	private long countNotMarked(Long salonId, LocalDate from, LocalDate to) {
+		LocalDate yesterday = LocalDate.now(clock).minusDays(1);
+		if (from.isAfter(yesterday)) {
+			return 0;
+		}
+		LocalDate end = to.isBefore(yesterday) ? to : yesterday;
+		return bookings.countBySalonIdAndStatusAndBookingDateBetween(salonId, BookingStatus.BOOKED, from, end);
 	}
 
 	@Transactional

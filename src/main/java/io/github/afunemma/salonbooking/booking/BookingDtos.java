@@ -46,6 +46,36 @@ public final class BookingDtos {
 		}
 	}
 
+	/**
+	 * How often clients didn't arrive, over a date range.
+	 *
+	 * @param completed appointments the owner marked as done
+	 * @param noShows appointments the client didn't arrive for
+	 * @param cancelled cancelled by the client or the salon; not counted in the rate,
+	 * because the salon was told in time
+	 * @param notMarked past bookings still marked as booked: the owner hasn't recorded
+	 * what happened, so the rate may be incomplete
+	 * @param noShowRatePercent no-shows ÷ (completed + no-shows), as a percentage with
+	 * one decimal; {@code null} when there is nothing to divide by
+	 */
+	public record NoShowStatsResponse(LocalDate from, LocalDate to, long completed, long noShows, long cancelled,
+			long notMarked, @Nullable Double noShowRatePercent) {
+
+		static NoShowStatsResponse of(LocalDate from, LocalDate to, long completed, long noShows, long cancelled,
+				long notMarked) {
+			return new NoShowStatsResponse(from, to, completed, noShows, cancelled, notMarked,
+					noShowRatePercent(completed, noShows));
+		}
+
+		static @Nullable Double noShowRatePercent(long completed, long noShows) {
+			long appointments = completed + noShows;
+			if (appointments == 0) {
+				return null;
+			}
+			return Math.round(noShows * 1000.0 / appointments) / 10.0;
+		}
+	}
+
 	public record FreeSlotsResponse(LocalDate date, Long serviceId, int durationMinutes, List<LocalTime> startTimes) {
 	}
 
