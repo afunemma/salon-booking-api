@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.net.URI;
 import java.time.Duration;
 import java.time.ZoneId;
 
@@ -18,9 +19,10 @@ class LoginAttemptLimiterTest {
 
 	/** 3 attempts per IP per hour; 2 failures per email per hour. */
 	private final LoginAttemptLimiter limiter = new LoginAttemptLimiter(
-			new AppProperties(ZoneId.of("Africa/Johannesburg"), new AppProperties.Booking(Duration.ofMinutes(15)),
-					new AppProperties.Reminders("-"), new AppProperties.Security(null, Duration.ofHours(1),
-							new RateLimit(3, Duration.ofHours(1)), new RateLimit(2, Duration.ofHours(1)))));
+			new AppProperties(ZoneId.of("Africa/Johannesburg"), URI.create("http://localhost:8080"),
+					new AppProperties.Booking(Duration.ofMinutes(15)), new AppProperties.Reminders("-"),
+					new AppProperties.Security(null, null, Duration.ofHours(1), new RateLimit(3, Duration.ofHours(1)),
+							new RateLimit(2, Duration.ofHours(1)))));
 
 	@Test
 	@DisplayName("One IP address gets a limited number of attempts, across any emails")

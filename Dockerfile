@@ -54,6 +54,8 @@ RUN java -XX:AOTCacheOutput=app.aot -XX:-AOTClassLinking -Xlog:aot=error -Dsprin
         --spring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access=false \
         --spring.datasource.url=jdbc:postgresql://localhost:5432/training-only \
         --app.security.jwt-secret=training-only-not-a-real-secret-0123456789 \
+        --app.security.cancel-link-secret=training-only-not-a-real-secret-0123456789 \
+        --app.public-base-url=http://localhost:8080 \
     && test -s app.aot
 ENV JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS} -XX:AOTCache=app.aot"
 

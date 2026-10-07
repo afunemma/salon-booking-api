@@ -28,3 +28,6 @@ services:
       # Render generates a random 256-bit key (44 characters, base64).
       - key: APP_SECURITY_JWT_SECRET
         generateValue: true
+      # Signs clients' cancel links. A separate key, so each key has one job.
+      - key: APP_SECURITY_CANCEL_LINK_SECRET
+        generateValue: true

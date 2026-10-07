@@ -37,7 +37,7 @@ The goal is to let clients book themselves and to cut no-shows, without adding a
 |---|---|
 | Language | Java 25 |
 | Framework | Spring Boot 4 |
-| API | REST with Spring MVC, Bean Validation, OpenAPI / Swagger UI (springdoc) |
+| API | REST with Spring MVC, Bean Validation, OpenAPI / Swagger UI (springdoc); Thymeleaf for the client's cancel page |
 | Security | Spring Security, JWT (OAuth 2 resource server), BCrypt |
 | Database | PostgreSQL 18, with Flyway migrations and Spring Data JPA |
 | Build | Maven (wrapper included) |
@@ -202,11 +202,13 @@ Clients book **without an account**. Salon owners register, log in, and send the
 | `POST` | `/api/v1/salons/{salonId}/services` | 🔒 Owner | Add a service, e.g. a 35-minute haircut at R50–R100 |
 | `GET` | `/api/v1/salons/{salonId}/services` | Anyone | List a salon's services |
 | `GET` | `/api/v1/salons/{salonId}/free-slots?serviceId=&date=` | Anyone | Free start times for a service on a date |
-| `POST` | `/api/v1/salons/{salonId}/bookings` | Anyone | Book a free slot |
+| `POST` | `/api/v1/salons/{salonId}/bookings` | Anyone | Book a free slot. The response includes the client's `cancelUrl` |
 | `GET` | `/api/v1/salons/{salonId}/bookings?date=` | 🔒 Owner | The salon's day view |
 | `POST` | `/api/v1/salons/{salonId}/bookings/{bookingId}/cancel` · `/complete` · `/no-show` | 🔒 Owner | Update a booking |
 
 🔒 = the salon's owner only. Other logged-in owners get `403 Forbidden`.
+
+Clients cancel on a small web page, not through the JSON API: `GET /bookings/{bookingId}/cancel?token=` shows the booking, and the button sends `POST` to the same address. See [Cancelling from the link](#cancelling-from-the-link).
 
 Example: book a haircut.
 
@@ -217,7 +219,8 @@ curl -X POST localhost:8080/api/v1/salons/1/bookings -H 'Content-Type: applicati
 
 ```json
 {"id": 1, "serviceId": 1, "serviceName": "Haircut", "clientName": "Thabo", "clientPhone": "082 123 4567",
- "date": "2030-01-07", "startTime": "10:00:00", "endTime": "10:35:00", "status": "BOOKED"}
+ "date": "2030-01-07", "startTime": "10:00:00", "endTime": "10:35:00", "status": "BOOKED",
+ "cancelUrl": "http://localhost:8080/bookings/1/cancel?token=SFN7qcK2m9SmZqZmYug41Q"}
 ```
 
 Errors use the standard [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) format, and validation errors name every invalid field:
@@ -260,7 +263,7 @@ Edge cases covered by tests:
 
 Clients get a reminder **the evening before** their appointment, to cut no-shows without the salon doing anything ([ADR-0009](docs/adr/0009-evening-reminders-with-a-scheduled-job.md)).
 
-> Hi Thabo, a reminder of your Haircut at Sipho's Cuts tomorrow, Monday 7 January, at 10:00. If you can't make it, please let the salon know.
+> Hi Thabo, a reminder of your Haircut at Sipho's Cuts tomorrow, Monday 7 January, at 10:00. Can't make it? Cancel here so someone else can have the slot: https://…/bookings/42/cancel?token=SFN7qcK2m9SmZqZmYug41Q
 
 - **When:** a scheduled job runs every hour from **18:00 to 21:00** (salon time) and reminds each client with an active booking tomorrow who hasn't been reminded yet.
 - **Never twice, never lost:**
@@ -270,6 +273,17 @@ Clients get a reminder **the evening before** their appointment, to cut no-shows
 - **Delivery channel:** behind a `ReminderSender` interface. For now `LoggingReminderSender` only logs the reminder (booking id and the last 3 phone digits). WhatsApp or SMS costs money per message and will be a separate implementation.
 - **Free-plan friendly:** the job queries the database only 4 times a day, so Neon can sleep.
 - **Tests:** [`ReminderJobIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/reminder/ReminderJobIntegrationTest.java) runs the job against real PostgreSQL. It checks the message text, that cancelled and later bookings are skipped, that a second run sends nothing, and that a failed send is retried.
+
+### Cancelling from the link
+
+A client who can't come taps the link in their reminder, sees their appointment and presses **Cancel my booking**. The slot is free again straight away, so the salon gets a chance to fill it instead of losing it to a no-show ([ADR-0010](docs/adr/0010-signed-cancel-links-for-clients.md)).
+
+- **Only the client can use it:** the token is an HMAC-SHA256 signature of the booking id, made with a server-side key. Changing the id breaks the signature. Nothing is stored in the database.
+- **Opening the link never cancels anything.** Chat apps open links in the background to build previews, so cancelling needs the button (a POST), followed by a redirect back to the page.
+- **It works once:** after the booking is cancelled, done or has started, the page no longer offers to cancel.
+- **Wrong and unknown links look the same** (404), so links can't be used to find out which bookings exist.
+- **Try it in the demo:** the booking response includes your `cancelUrl`.
+- **Tests:** [`ClientCancelIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/booking/ClientCancelIntegrationTest.java) covers the full flow, double cancelling, wrong, foreign and unknown tokens, bookings that are done or have started, and HTML escaping of names.
 
 ## Database design
 
@@ -310,7 +324,8 @@ Full reasoning: [ADR-0006](docs/adr/0006-stateless-jwt-auth-for-owners-only.md).
 - **Ownership:** checked in one place (`SalonService.findOwnedSalon`). Owners can only see and change their own salon. Client names and phone numbers are visible only to that salon's owner.
 - **Passwords:** hashed with BCrypt and 12 to 72 characters long. They are never stored, returned or logged.
 - **Login gives nothing away:** a wrong password and an unknown email return an identical response in the same time (a dummy hash check), so the login form can't be used to discover registered emails.
-- **The signing key comes from the environment,** never from a committed file.
+- **The signing keys come from the environment,** never from a committed file. Login tokens and clients' cancel links each have their own key.
+- **Cancel links** are HMAC-signed per booking, compared in constant time, and only cancel on a POST, never when the link is opened ([ADR-0010](docs/adr/0010-signed-cancel-links-for-clients.md)).
 - **Login rate limiting** ([ADR-0007](docs/adr/0007-in-memory-login-rate-limiting.md)): at most 20 attempts per minute per IP address, and 5 failed attempts per email before that email is paused. A successful login resets the count. Blocked attempts get `429 Too Many Requests` with a `Retry-After` header.
 - **Errors:** security errors (`401`, `403`) use the same Problem Details format as every other error.
 - **Tests:** [`SecurityIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/SecurityIntegrationTest.java) covers missing, garbage, expired and forged tokens, password hashing, and one owner trying to read or change another owner's salon.
@@ -346,6 +361,7 @@ The live demo runs on free plans: the app on [Render](https://render.com) and Po
   | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://<neon-direct-host>/<db>?sslmode=require` |
   | `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | From Neon |
   | `APP_SECURITY_JWT_SECRET` | Generated by Render |
+  | `APP_SECURITY_CANCEL_LINK_SECRET` | Generated by Render |
 - **The `demo` profile** creates a sample salon ("Demo Salon", id 1) with services, so visitors can look up free slots and book straight away.
 - **CI also builds the Docker image,** so a broken Dockerfile never reaches the host.
 - **Kept awake by an uptime monitor:** a free [UptimeRobot](https://uptimerobot.com) monitor calls `/livez` every 5 minutes, so Render never puts the app to sleep and visitors skip the cold start. It also emails an alert if the demo goes down. `/livez` doesn't touch the database, so Neon can still sleep.
@@ -382,7 +398,7 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] Prevent double bookings when two clients book the same slot at once (lock + exclusion constraint, with a concurrency test)
 - [x] Owner login (JWT), with each salon's data visible only to its owner. Clients book without an account
 - [x] Evening-before appointment reminders, retried on failure (delivery channel still a stand-in)
-- [ ] Clients cancel their own booking from a link in the reminder
+- [x] Clients cancel their own booking from a signed link in the reminder
 - [ ] Deliver reminders by WhatsApp or SMS
 - [ ] Staff members with their own schedules
 - [x] Specific error types, structured logging without personal data, typed config (PR #1)

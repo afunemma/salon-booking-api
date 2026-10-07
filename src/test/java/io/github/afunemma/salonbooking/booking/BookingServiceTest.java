@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -54,11 +55,13 @@ class BookingServiceTest {
 	void setUp() {
 		Clock clock = Clock.fixed(FixedClockConfiguration.NOW.toInstant(), FixedClockConfiguration.NOW.getZone());
 		AppProperties properties = new AppProperties(ZoneId.of("Africa/Johannesburg"),
-				new AppProperties.Booking(Duration.ofMinutes(15)), new AppProperties.Reminders("-"),
-				new AppProperties.Security(null, Duration.ofHours(1),
+				URI.create("http://localhost:8080"), new AppProperties.Booking(Duration.ofMinutes(15)),
+				new AppProperties.Reminders("-"),
+				new AppProperties.Security(null, null, Duration.ofHours(1),
 						new AppProperties.RateLimit(20, Duration.ofMinutes(1)),
 						new AppProperties.RateLimit(5, Duration.ofMinutes(15))));
-		bookingService = new BookingService(bookings, salonService, clock, properties, meters);
+		bookingService = new BookingService(bookings, salonService, clock, properties, meters,
+				new CancelLinks(properties));
 
 		Salon salon = new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)), 1L);
 		ReflectionTestUtils.setField(salon, "id", 1L);
