@@ -205,6 +205,7 @@ Clients book **without an account**. Salon owners register, log in, and send the
 | `POST` | `/api/v1/salons/{salonId}/bookings` | Anyone | Book a free slot. The response includes the client's `cancelUrl` |
 | `GET` | `/api/v1/salons/{salonId}/bookings?date=` | 🔒 Owner | The salon's day view |
 | `POST` | `/api/v1/salons/{salonId}/bookings/{bookingId}/cancel` · `/complete` · `/no-show` | 🔒 Owner | Update a booking |
+| `GET` | `/api/v1/salons/{salonId}/no-show-stats?from=&to=` | 🔒 Owner | The no-show rate over up to a year, e.g. before and after reminders |
 
 🔒 = the salon's owner only. Other logged-in owners get `403 Forbidden`.
 
@@ -284,6 +285,21 @@ A client who can't come taps the link in their reminder, sees their appointment 
 - **Wrong and unknown links look the same** (404), so links can't be used to find out which bookings exist.
 - **Try it in the demo:** the booking response includes your `cancelUrl`.
 - **Tests:** [`ClientCancelIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/booking/ClientCancelIntegrationTest.java) covers the full flow, double cancelling, wrong, foreign and unknown tokens, bookings that are done or have started, and HTML escaping of names.
+
+## No-show rate
+
+Owners can check whether reminders and cancel links are working: `GET /api/v1/salons/{salonId}/no-show-stats?from=2030-01-01&to=2030-01-31`
+
+```json
+{"from": "2030-01-01", "to": "2030-01-31", "completed": 87, "noShows": 4, "cancelled": 6,
+ "notMarked": 2, "noShowRatePercent": 4.4}
+```
+
+- **Rate = no-shows ÷ (completed + no-shows).** Cancelled bookings don't count against the client, because they gave notice. That's exactly what the cancel link encourages.
+- **`notMarked`:** past bookings the owner never marked as done or no-show. A rate built on incomplete data is flagged instead of being silently wrong. Today's and future bookings aren't counted.
+- **No appointments → `null`,** not a misleading 0%.
+- **Counted by the database** in one `GROUP BY` query that uses the existing `(salon_id, booking_date)` index, instead of loading every booking into Java. Ranges are limited to 366 days.
+- **A separate endpoint, not a change to the day view:** the day view returns a list, and changing its shape would break existing `/api/v1` clients. A single day is also too few appointments for a meaningful rate.
 
 ## Database design
 
@@ -399,6 +415,7 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] Owner login (JWT), with each salon's data visible only to its owner. Clients book without an account
 - [x] Evening-before appointment reminders, retried on failure (delivery channel still a stand-in)
 - [x] Clients cancel their own booking from a signed link in the reminder
+- [x] No-show rate over a date range for owners, to measure whether reminders work
 - [ ] Deliver reminders by WhatsApp or SMS
 - [ ] Staff members with their own schedules
 - [x] Specific error types, structured logging without personal data, typed config (PR #1)

@@ -19,6 +19,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import io.github.afunemma.salonbooking.booking.BookingDtos.BookingResponse;
 import io.github.afunemma.salonbooking.booking.BookingDtos.CreateBookingRequest;
 import io.github.afunemma.salonbooking.booking.BookingDtos.FreeSlotsResponse;
+import io.github.afunemma.salonbooking.booking.BookingDtos.NoShowStatsResponse;
 import io.github.afunemma.salonbooking.common.OpenApiConfig;
 import io.github.afunemma.salonbooking.common.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,6 +62,17 @@ class BookingController {
 	List<BookingResponse> listBookings(@PathVariable Long salonId, @RequestParam LocalDate date,
 			@AuthenticationPrincipal Jwt token) {
 		return bookingService.listBookings(salonId, TokenService.userIdOf(token), date);
+	}
+
+	@GetMapping("/no-show-stats")
+	@Operation(summary = "The salon's no-show rate over a date range (owner only)", description = """
+			Rate = no-shows ÷ (completed + no-shows). Cancelled bookings don't count: the client \
+			gave notice. Past bookings still marked as booked are counted as `notMarked`, so you know \
+			when the rate is incomplete. Ranges can be up to 366 days.""")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
+	NoShowStatsResponse noShowStats(@PathVariable Long salonId, @RequestParam LocalDate from,
+			@RequestParam LocalDate to, @AuthenticationPrincipal Jwt token) {
+		return bookingService.noShowStats(salonId, TokenService.userIdOf(token), from, to);
 	}
 
 	@PostMapping("/bookings/{bookingId}/cancel")
