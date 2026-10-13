@@ -14,8 +14,8 @@ A REST API that lets clients book appointments at salons (barbers, hair, braids,
 
 A 2-minute tour in Swagger UI (click an endpoint → **Try it out** → **Execute**):
 
-1. **See free times as a client:** `GET /api/v1/salons/{salonId}/free-slots` with `salonId` **1** (the Demo Salon), `serviceId` **1**, and tomorrow's date.
-2. **Book one, without an account:** `POST /api/v1/salons/1/bookings` with one of those times. Book the same time again to see the `409 Slot unavailable` response.
+1. **See free times as a client:** `GET /api/v1/salons/{salonId}/free-slots` with `salonId` **1** (the Demo Salon), `serviceId` **1**, and tomorrow's date. The Demo Salon has two staff (`GET /api/v1/salons/1/staff`): Sipho works all day, Lindiwe from 12:00. Add `staffId` to see one person's times.
+2. **Book one, without an account:** `POST /api/v1/salons/1/bookings` with one of those times. After 12:00, book the same time twice: the second booking goes to the other staff member. A third gets `409 Slot unavailable`.
 3. **Become a salon owner:** `POST /api/v1/auth/register`, then `POST /api/v1/auth/login`. Copy the `accessToken`, click **Authorize** 🔒 at the top of the page, and paste it in.
 4. **Manage your own salon:** create one (`POST /api/v1/salons`), add a service, book it, and open your day view (`GET .../bookings`). Then try the Demo Salon's day view: you get `403 Forbidden`, because it isn't yours.
 
@@ -107,10 +107,10 @@ sequenceDiagram
     S->>DB: SELECT salon ... FOR UPDATE
     Note over S,DB: Other bookings for this salon wait here
     S->>DB: Load the day's bookings
-    S->>S: SlotFinder: is 10:00 still free?
-    alt Free
-        S->>DB: INSERT booking
-        Note over DB: Exclusion constraint: final check for overlaps
+    S->>S: SlotFinder: which staff member is free at 10:00?
+    alt Someone is free
+        S->>DB: INSERT booking (first free staff member)
+        Note over DB: Exclusion constraint: final check for overlaps per staff member
         S-->>C: 201 Created
     else Taken
         S-->>C: 409 Slot unavailable
@@ -123,8 +123,10 @@ sequenceDiagram
 erDiagram
     app_user ||--o{ salon : owns
     salon ||--o{ service_offering : offers
+    salon ||--o{ staff_member : employs
     salon ||--o{ booking : has
     service_offering ||--o{ booking : "booked as"
+    staff_member ||--o{ booking : serves
     booking ||--o| booking_reminder : "reminded by"
 
     app_user {
@@ -147,10 +149,18 @@ erDiagram
         int price_from_cents "optional"
         int price_to_cents "optional"
     }
+    staff_member {
+        bigint id PK
+        bigint salon_id FK
+        varchar name
+        time starts_at "within salon hours"
+        time ends_at
+    }
     booking {
         bigint id PK
         bigint salon_id FK
         bigint service_offering_id FK
+        bigint staff_member_id FK "same salon"
         varchar client_name
         varchar client_phone
         date booking_date
@@ -201,8 +211,11 @@ Clients book **without an account**. Salon owners register, log in, and send the
 | `GET` | `/api/v1/salons/{salonId}` | Anyone | Get a salon |
 | `POST` | `/api/v1/salons/{salonId}/services` | 🔒 Owner | Add a service, e.g. a 35-minute haircut at R50–R100 |
 | `GET` | `/api/v1/salons/{salonId}/services` | Anyone | List a salon's services |
-| `GET` | `/api/v1/salons/{salonId}/free-slots?serviceId=&date=` | Anyone | Free start times for a service on a date |
-| `POST` | `/api/v1/salons/{salonId}/bookings` | Anyone | Book a free slot. The response includes the client's `cancelUrl` |
+| `POST` | `/api/v1/salons/{salonId}/staff` | 🔒 Owner | Add a staff member with their own working hours |
+| `GET` | `/api/v1/salons/{salonId}/staff` | Anyone | List a salon's staff members |
+| `PUT` | `/api/v1/salons/{salonId}/staff/{staffId}` | 🔒 Owner | Rename a staff member or change their hours |
+| `GET` | `/api/v1/salons/{salonId}/free-slots?serviceId=&date=&staffId=` | Anyone | Free start times for a service on a date; `staffId` is optional |
+| `POST` | `/api/v1/salons/{salonId}/bookings` | Anyone | Book a free slot, with a chosen staff member or the first one free. The response includes the client's `cancelUrl` |
 | `GET` | `/api/v1/salons/{salonId}/bookings?date=` | 🔒 Owner | The salon's day view |
 | `POST` | `/api/v1/salons/{salonId}/bookings/{bookingId}/cancel` · `/complete` · `/no-show` | 🔒 Owner | Update a booking |
 | `GET` | `/api/v1/salons/{salonId}/no-show-stats?from=&to=` | 🔒 Owner | The no-show rate over up to a year, e.g. before and after reminders |
@@ -246,7 +259,9 @@ Errors use the standard [RFC 9457 Problem Details](https://www.rfc-editor.org/rf
 
 ## How free slots are found
 
-`SlotFinder` walks through the day from opening time in fixed steps (e.g. every 15 minutes). It keeps a start time only if the service finishes by closing time and doesn't overlap an existing booking.
+`SlotFinder` walks through a staff member's working day in fixed steps (e.g. every 15 minutes). It keeps a start time only if the service finishes before they stop working and doesn't overlap one of their bookings.
+
+Without a chosen staff member, a time is free when **at least one** staff member is free then. The day's bookings are loaded in one query and split by staff member, rather than one query per person.
 
 Two appointments overlap when **each one starts before the other ends**:
 
@@ -316,6 +331,15 @@ salon ──< service_offering
 - **Booking end times are stored**, not just calculated, so the database can check for overlapping bookings (see below).
 - `SlotFinder` works on plain `TimeRange` values and has no database dependency, so the core logic stays easy to test.
 
+## Staff members
+
+Every salon starts with one staff member, "Owner", working the salon's hours, so a solo barber never has to set anything up. Bigger salons add staff, each with their own working hours ([ADR-0011](docs/adr/0011-staff-members-with-own-hours.md)).
+
+- **Parallel bookings:** two stylists can both start at 10:00; one stylist can't be double-booked.
+- **Clients may choose who to book with,** or leave it out and get the first staff member who is free.
+- **The database guards the rules:** working hours must start before they end, and a composite foreign key rejects a booking with another salon's staff member.
+- **Safe upgrade:** migration V5 gave every existing salon an "Owner" staff member and moved its bookings to them. [`StaffMigrationTest`](src/test/java/io/github/afunemma/salonbooking/salon/StaffMigrationTest.java) runs it against a database that already has bookings.
+
 ## Preventing double bookings
 
 Booking works like this: check that the slot is free, then save it. On its own, that has a **race condition**. If two clients book 10:00 at the same moment, both checks can pass before either booking is saved.
@@ -323,10 +347,10 @@ Booking works like this: check that the slot is free, then save it. On its own, 
 I wrote [a test](src/test/java/io/github/afunemma/salonbooking/booking/ConcurrentBookingTest.java) that sends 20 simultaneous requests for overlapping times. Before the fix, **10 of the 20 succeeded**. Now exactly one does, protected by two layers:
 
 1. **Pessimistic lock.** `book()` first locks the salon's row (`SELECT ... FOR UPDATE`). Bookings for the same salon wait their turn for a few milliseconds, so the second request sees the first one's booking and gets a clear `409 Slot unavailable`.
-2. **Database exclusion constraint** (a safety net, in [`V2__prevent_overlapping_bookings.sql`](src/main/resources/db/migration/V2__prevent_overlapping_bookings.sql)). PostgreSQL itself rejects any two active bookings in the same salon whose time ranges overlap (`&&`). This holds even for code paths that skip the lock.
+2. **Database exclusion constraint** (a safety net, first in [`V2`](src/main/resources/db/migration/V2__prevent_overlapping_bookings.sql), per staff member since [`V5`](src/main/resources/db/migration/V5__add_staff_members.sql)). PostgreSQL itself rejects any two active bookings for the same staff member whose time ranges overlap (`&&`). This holds even for code paths that skip the lock.
 
 ```sql
-EXCLUDE USING gist (salon_id WITH =, booking_date WITH =, timerange(start_time, end_time) WITH &&)
+EXCLUDE USING gist (staff_member_id WITH =, booking_date WITH =, timerange(start_time, end_time) WITH &&)
 WHERE (status = 'BOOKED')
 ```
 
@@ -417,7 +441,8 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] Clients cancel their own booking from a signed link in the reminder
 - [x] No-show rate over a date range for owners, to measure whether reminders work
 - [ ] Deliver reminders by WhatsApp or SMS
-- [ ] Staff members with their own schedules
+- [x] Staff members with their own working hours; clients can choose who to book with
+- [ ] Days off and breaks, for salons and staff
 - [x] Specific error types, structured logging without personal data, typed config (PR #1)
 - [x] Architecture tests, coverage minimums, formatting and ADRs (PR #2)
 - [x] Architecture diagrams, business metrics (Prometheus) and login rate limiting

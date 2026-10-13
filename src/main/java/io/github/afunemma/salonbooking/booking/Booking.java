@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
+import io.github.afunemma.salonbooking.salon.StaffMember;
 import io.github.afunemma.salonbooking.scheduling.TimeRange;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,6 +45,10 @@ public class Booking {
 	@JoinColumn(name = "service_offering_id")
 	private ServiceOffering service;
 
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "staff_member_id")
+	private StaffMember staff;
+
 	@Column(nullable = false)
 	private String clientName;
 
@@ -69,10 +74,14 @@ public class Booking {
 	protected Booking() {
 	}
 
-	public Booking(ServiceOffering service, String clientName, String clientPhone, LocalDate bookingDate,
-			LocalTime startTime) {
+	public Booking(ServiceOffering service, StaffMember staff, String clientName, String clientPhone,
+			LocalDate bookingDate, LocalTime startTime) {
 		this.service = Objects.requireNonNull(service, "service must not be null");
+		this.staff = Objects.requireNonNull(staff, "staff must not be null");
 		this.salon = service.getSalon();
+		if (!sameSalon(staff.getSalon(), salon)) {
+			throw new IllegalArgumentException("The staff member must work at the service's salon");
+		}
 		this.clientName = Objects.requireNonNull(clientName, "clientName must not be null");
 		this.clientPhone = Objects.requireNonNull(clientPhone, "clientPhone must not be null");
 		this.bookingDate = Objects.requireNonNull(bookingDate, "bookingDate must not be null");
@@ -80,6 +89,10 @@ public class Booking {
 		this.endTime = startTime.plus(service.getDuration());
 		this.status = BookingStatus.BOOKED;
 		this.createdAt = Instant.now();
+	}
+
+	private static boolean sameSalon(Salon a, Salon b) {
+		return a == b || a.getId().equals(b.getId());
 	}
 
 	public TimeRange getTimeRange() {
@@ -116,6 +129,10 @@ public class Booking {
 
 	public ServiceOffering getService() {
 		return service;
+	}
+
+	public StaffMember getStaff() {
+		return staff;
 	}
 
 	public String getClientName() {

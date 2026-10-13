@@ -21,19 +21,23 @@ public final class BookingDtos {
 	private BookingDtos() {
 	}
 
+	/**
+	 * @param staffId who to book with; leave it out to get the first staff member who is
+	 * free at that time
+	 */
 	public record CreateBookingRequest(@NotNull Long serviceId, @NotBlank @Size(max = 255) String clientName,
 			@NotBlank @Pattern(regexp = "\\+?[0-9 ]{7,20}",
 					message = "must be a phone number, e.g. 082 123 4567") String clientPhone,
-			@NotNull LocalDate date, @NotNull LocalTime startTime) {
+			@NotNull LocalDate date, @NotNull LocalTime startTime, @Nullable Long staffId) {
 	}
 
 	/**
 	 * @param cancelUrl the client's own cancel link. Only included in the response to the
 	 * client who just booked; the owner's day view leaves it out.
 	 */
-	public record BookingResponse(Long id, Long serviceId, String serviceName, String clientName, String clientPhone,
-			LocalDate date, LocalTime startTime, LocalTime endTime, BookingStatus status,
-			@JsonInclude(JsonInclude.Include.NON_NULL) @Nullable String cancelUrl) {
+	public record BookingResponse(Long id, Long serviceId, String serviceName, Long staffId, String staffName,
+			String clientName, String clientPhone, LocalDate date, LocalTime startTime, LocalTime endTime,
+			BookingStatus status, @JsonInclude(JsonInclude.Include.NON_NULL) @Nullable String cancelUrl) {
 
 		static BookingResponse from(Booking booking) {
 			return withCancelUrl(booking, null);
@@ -41,8 +45,9 @@ public final class BookingDtos {
 
 		static BookingResponse withCancelUrl(Booking booking, @Nullable String cancelUrl) {
 			return new BookingResponse(booking.getId(), booking.getService().getId(), booking.getService().getName(),
-					booking.getClientName(), booking.getClientPhone(), booking.getBookingDate(), booking.getStartTime(),
-					booking.getEndTime(), booking.getStatus(), cancelUrl);
+					booking.getStaff().getId(), booking.getStaff().getName(), booking.getClientName(),
+					booking.getClientPhone(), booking.getBookingDate(), booking.getStartTime(), booking.getEndTime(),
+					booking.getStatus(), cancelUrl);
 		}
 	}
 
@@ -76,7 +81,12 @@ public final class BookingDtos {
 		}
 	}
 
-	public record FreeSlotsResponse(LocalDate date, Long serviceId, int durationMinutes, List<LocalTime> startTimes) {
+	/**
+	 * @param staffId the staff member asked about, or {@code null}: then a time is listed
+	 * when at least one staff member is free
+	 */
+	public record FreeSlotsResponse(LocalDate date, Long serviceId, @Nullable Long staffId, int durationMinutes,
+			List<LocalTime> startTimes) {
 	}
 
 }

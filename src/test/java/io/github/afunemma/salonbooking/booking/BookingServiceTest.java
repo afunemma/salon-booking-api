@@ -28,6 +28,7 @@ import io.github.afunemma.salonbooking.common.AppProperties;
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonService;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
+import io.github.afunemma.salonbooking.salon.StaffMember;
 import io.github.afunemma.salonbooking.scheduling.OpeningHours;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -68,10 +69,14 @@ class BookingServiceTest {
 		ServiceOffering haircut = new ServiceOffering(salon, "Haircut", Duration.ofMinutes(35), null, null);
 		ReflectionTestUtils.setField(haircut, "id", 2L);
 
+		StaffMember sipho = new StaffMember(salon, "Sipho", salon.getOpeningHours());
+		ReflectionTestUtils.setField(sipho, "id", 3L);
+
 		when(salonService.findService(1L, 2L)).thenReturn(haircut);
+		when(salonService.staffOf(1L)).thenReturn(List.of(sipho));
 		when(bookings.findBySalonIdAndBookingDateAndStatusOrderByStartTime(1L, TOMORROW, BookingStatus.BOOKED))
 			.thenReturn(List.of());
-		request = new CreateBookingRequest(2L, "Thabo", "082 123 4567", TOMORROW, LocalTime.of(10, 0));
+		request = new CreateBookingRequest(2L, "Thabo", "082 123 4567", TOMORROW, LocalTime.of(10, 0), null);
 	}
 
 	@Test

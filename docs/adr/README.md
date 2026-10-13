@@ -16,3 +16,4 @@ New decisions get the next number. If a decision is later replaced, its status b
 | [0008](0008-free-hosting-on-render-and-neon.md) | Host the live demo on Render and Neon free plans | Accepted |
 | [0009](0009-evening-reminders-with-a-scheduled-job.md) | Send evening-before reminders with a scheduled job | Accepted |
 | [0010](0010-signed-cancel-links-for-clients.md) | Let clients cancel from a signed link | Accepted |
+| [0011](0011-staff-members-with-own-hours.md) | Staff members with their own hours, and overlaps per staff member | Accepted |

@@ -9,8 +9,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+
+import org.jspecify.annotations.Nullable;
 
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.ServerErrorMessage;
@@ -26,9 +32,9 @@ import io.github.afunemma.salonbooking.booking.BookingDtos.FreeSlotsResponse;
 import io.github.afunemma.salonbooking.booking.BookingDtos.NoShowStatsResponse;
 import io.github.afunemma.salonbooking.common.AppProperties;
 import io.github.afunemma.salonbooking.common.NotFoundException;
-import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonService;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
+import io.github.afunemma.salonbooking.salon.StaffMember;
 import io.github.afunemma.salonbooking.scheduling.SlotFinder;
 import io.github.afunemma.salonbooking.scheduling.TimeRange;
 import io.micrometer.core.instrument.Counter;
@@ -82,10 +88,16 @@ public class BookingService {
 			.register(meters);
 	}
 
-	public FreeSlotsResponse findFreeSlots(Long salonId, Long serviceId, LocalDate date) {
+	/**
+	 * With a staff member: their free start times. Without: every time at which at least
+	 * one staff member is free.
+	 */
+	public FreeSlotsResponse findFreeSlots(Long salonId, Long serviceId, LocalDate date, @Nullable Long staffId) {
 		ServiceOffering service = salonService.findService(salonId, serviceId);
-		List<LocalTime> startTimes = freeStartTimes(service, date);
-		return new FreeSlotsResponse(date, serviceId, Math.toIntExact(service.getDuration().toMinutes()), startTimes);
+		SortedSet<LocalTime> startTimes = new TreeSet<>();
+		freeTimesByStaff(service, staffToConsider(salonId, staffId), date).values().forEach(startTimes::addAll);
+		return new FreeSlotsResponse(date, serviceId, staffId, Math.toIntExact(service.getDuration().toMinutes()),
+				List.copyOf(startTimes));
 	}
 
 	/**
@@ -108,12 +120,19 @@ public class BookingService {
 			countRejected("date_in_past");
 			throw new BookingNotAllowedException("Bookings can't be made for a date in the past");
 		}
-		if (!freeStartTimes(service, request.date()).contains(request.startTime())) {
-			countRejected("slot_unavailable");
-			throw new SlotUnavailableException(
-					request.startTime() + " is not available on " + request.date() + " for " + service.getName());
-		}
-		Booking booking = new Booking(service, request.clientName().strip(), request.clientPhone().strip(),
+		// The first staff member (in the order they were added) who is free then.
+		StaffMember staff = freeTimesByStaff(service, staffToConsider(salonId, request.staffId()), request.date())
+			.entrySet()
+			.stream()
+			.filter(entry -> entry.getValue().contains(request.startTime()))
+			.map(Map.Entry::getKey)
+			.findFirst()
+			.orElseThrow(() -> {
+				countRejected("slot_unavailable");
+				return new SlotUnavailableException(
+						request.startTime() + " is not available on " + request.date() + " for " + service.getName());
+			});
+		Booking booking = new Booking(service, staff, request.clientName().strip(), request.clientPhone().strip(),
 				request.date(), request.startTime());
 		try {
 			bookings.saveAndFlush(booking);
@@ -133,8 +152,8 @@ public class BookingService {
 		// Client name and phone number are personal information (POPIA), so they are not
 		// logged.
 		bookingsMade.increment();
-		log.info("Booking created: id={} salon={} service={} date={} start={}", booking.getId(), salonId,
-				service.getId(), booking.getBookingDate(), booking.getStartTime());
+		log.info("Booking created: id={} salon={} service={} staff={} date={} start={}", booking.getId(), salonId,
+				service.getId(), staff.getId(), booking.getBookingDate(), booking.getStartTime());
 		return BookingResponse.withCancelUrl(booking, cancelLinks.urlFor(booking.getId()));
 	}
 
@@ -266,24 +285,38 @@ public class BookingService {
 			.increment();
 	}
 
-	private List<LocalTime> freeStartTimes(ServiceOffering service, LocalDate date) {
+	private List<StaffMember> staffToConsider(Long salonId, @Nullable Long staffId) {
+		return staffId != null ? List.of(salonService.findStaff(salonId, staffId)) : salonService.staffOf(salonId);
+	}
+
+	/**
+	 * Each staff member's free start times on a date, within their own working hours, in
+	 * the same order as {@code staff}. The day's bookings are loaded in one query and
+	 * then split by staff member.
+	 */
+	private Map<StaffMember, List<LocalTime>> freeTimesByStaff(ServiceOffering service, List<StaffMember> staff,
+			LocalDate date) {
+		Map<StaffMember, List<LocalTime>> result = new LinkedHashMap<>();
 		LocalDate today = LocalDate.now(clock);
 		if (date.isBefore(today)) {
-			return List.of();
+			return result;
 		}
-		Salon salon = service.getSalon();
-		List<TimeRange> taken = bookings
-			.findBySalonIdAndBookingDateAndStatusOrderByStartTime(salon.getId(), date, BookingStatus.BOOKED)
+		Map<Long, List<TimeRange>> takenByStaff = bookings
+			.findBySalonIdAndBookingDateAndStatusOrderByStartTime(service.getSalon().getId(), date,
+					BookingStatus.BOOKED)
 			.stream()
-			.map(Booking::getTimeRange)
-			.toList();
-		List<LocalTime> free = SlotFinder.findFreeSlots(salon.getOpeningHours(), taken, service.getDuration(),
-				slotStep);
-		if (date.equals(today)) {
-			LocalTime now = LocalTime.now(clock);
-			return free.stream().filter(start -> start.isAfter(now)).toList();
+			.collect(Collectors.groupingBy(booking -> booking.getStaff().getId(),
+					Collectors.mapping(Booking::getTimeRange, Collectors.toList())));
+		for (StaffMember member : staff) {
+			List<LocalTime> free = SlotFinder.findFreeSlots(member.getWorkingHours(),
+					takenByStaff.getOrDefault(member.getId(), List.of()), service.getDuration(), slotStep);
+			if (date.equals(today)) {
+				LocalTime now = LocalTime.now(clock);
+				free = free.stream().filter(start -> start.isAfter(now)).toList();
+			}
+			result.put(member, free);
 		}
-		return free;
+		return result;
 	}
 
 	/**

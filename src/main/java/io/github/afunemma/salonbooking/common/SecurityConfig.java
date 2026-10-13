@@ -22,9 +22,9 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Who may call what.
  * <ul>
- * <li><b>Anyone:</b> register, log in, view a salon and its services, see free slots, and
- * book, and cancel their own booking from the signed link in their reminder. Clients
- * don't need an account.</li>
+ * <li><b>Anyone:</b> register, log in, view a salon, its staff and services, see free
+ * slots, and book, and cancel their own booking from the signed link in their reminder.
+ * Clients don't need an account.</li>
  * <li><b>Logged-in owners:</b> everything else, such as creating salons, adding services,
  * the day view and changing bookings. Whether the user owns that particular salon is
  * checked in the service layer.</li>
@@ -54,7 +54,7 @@ class SecurityConfig {
 				.requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login")
 				.permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/v1/salons/*", "/api/v1/salons/*/services",
-						"/api/v1/salons/*/free-slots")
+						"/api/v1/salons/*/staff", "/api/v1/salons/*/free-slots")
 				.permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/salons/*/bookings")
 				.permitAll()

@@ -4,6 +4,7 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -39,14 +40,16 @@ class BookingController {
 	}
 
 	@GetMapping("/free-slots")
-	@Operation(summary = "List free start times for a service on a date")
-	FreeSlotsResponse freeSlots(@PathVariable Long salonId, @RequestParam Long serviceId,
-			@RequestParam LocalDate date) {
-		return bookingService.findFreeSlots(salonId, serviceId, date);
+	@Operation(summary = "List free start times for a service on a date",
+			description = "With staffId: that staff member's free times. Without: times when anyone is free.")
+	FreeSlotsResponse freeSlots(@PathVariable Long salonId, @RequestParam Long serviceId, @RequestParam LocalDate date,
+			@RequestParam(required = false) @Nullable Long staffId) {
+		return bookingService.findFreeSlots(salonId, serviceId, date, staffId);
 	}
 
 	@PostMapping("/bookings")
-	@Operation(summary = "Book a free slot", description = "Returns 409 Conflict if the slot is no longer free.")
+	@Operation(summary = "Book a free slot",
+			description = "Without staffId, the first staff member free at that time is booked. Returns 409 Conflict if the slot is no longer free.")
 	ResponseEntity<BookingResponse> book(@PathVariable Long salonId, @Valid @RequestBody CreateBookingRequest request) {
 		BookingResponse booking = bookingService.book(salonId, request);
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()

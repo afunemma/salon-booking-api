@@ -1,6 +1,6 @@
 # ADR-0004: Prevent double bookings with a row lock and an exclusion constraint
 
-- **Status:** Accepted
+- **Status:** Accepted. The constraint now applies per staff member instead of per salon (ADR-0011); the lock is unchanged.
 - **Date:** 2026-09-30
 
 ## Context

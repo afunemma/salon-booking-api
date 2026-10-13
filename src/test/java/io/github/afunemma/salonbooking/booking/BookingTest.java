@@ -8,9 +8,11 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
+import io.github.afunemma.salonbooking.salon.StaffMember;
 import io.github.afunemma.salonbooking.scheduling.OpeningHours;
 import io.github.afunemma.salonbooking.scheduling.TimeRange;
 
@@ -21,9 +23,12 @@ class BookingTest {
 
 	private final ServiceOffering haircut = new ServiceOffering(salon, "Haircut", Duration.ofMinutes(35), null, null);
 
+	private final StaffMember sipho = new StaffMember(salon, "Sipho", salon.getOpeningHours());
+
 	@Test
 	void newBookingIsBookedAndEndsAfterServiceDuration() {
-		Booking booking = new Booking(haircut, "Thabo", "0821234567", LocalDate.of(2026, 10, 5), LocalTime.of(10, 0));
+		Booking booking = new Booking(haircut, sipho, "Thabo", "0821234567", LocalDate.of(2026, 10, 5),
+				LocalTime.of(10, 0));
 
 		assertThat(booking.getStatus()).isEqualTo(BookingStatus.BOOKED);
 		assertThat(booking.getTimeRange()).isEqualTo(new TimeRange(LocalTime.of(10, 0), LocalTime.of(10, 35)));
@@ -31,11 +36,24 @@ class BookingTest {
 
 	@Test
 	void finishedBookingCannotChangeAgain() {
-		Booking booking = new Booking(haircut, "Thabo", "0821234567", LocalDate.of(2026, 10, 5), LocalTime.of(10, 0));
+		Booking booking = new Booking(haircut, sipho, "Thabo", "0821234567", LocalDate.of(2026, 10, 5),
+				LocalTime.of(10, 0));
 		booking.markNoShow();
 
 		assertThat(booking.getStatus()).isEqualTo(BookingStatus.NO_SHOW);
 		assertThatThrownBy(booking::cancel).isInstanceOf(InvalidBookingStateException.class);
+	}
+
+	@Test
+	void staffMemberMustWorkAtTheServicesSalon() {
+		Salon other = new Salon("Other Cuts", salon.getOpeningHours(), 2L);
+		ReflectionTestUtils.setField(salon, "id", 1L);
+		ReflectionTestUtils.setField(other, "id", 2L);
+		StaffMember elsewhere = new StaffMember(other, "Lindiwe", other.getOpeningHours());
+
+		assertThatThrownBy(() -> new Booking(haircut, elsewhere, "Thabo", "0821234567", LocalDate.of(2026, 10, 5),
+				LocalTime.of(10, 0)))
+			.isInstanceOf(IllegalArgumentException.class);
 	}
 
 }

@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +21,8 @@ import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
+import io.github.afunemma.salonbooking.salon.SalonDtos.StaffRequest;
+import io.github.afunemma.salonbooking.salon.SalonDtos.StaffResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,7 +30,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/salons")
-@Tag(name = "Salons", description = "Set up a salon and the services it offers")
+@Tag(name = "Salons", description = "Set up a salon, its staff and the services it offers")
 class SalonController {
 
 	private final SalonService salonService;
@@ -71,6 +74,30 @@ class SalonController {
 	@Operation(summary = "List a salon's services")
 	List<ServiceResponse> listServices(@PathVariable Long salonId) {
 		return salonService.listServices(salonId);
+	}
+
+	@PostMapping("/{salonId}/staff")
+	@Operation(summary = "Add a staff member with their own working hours (owner only)",
+			description = "Every salon starts with one staff member, \"Owner\". Working hours default to the salon's opening hours.")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
+	ResponseEntity<StaffResponse> addStaff(@PathVariable Long salonId, @Valid @RequestBody StaffRequest request,
+			@AuthenticationPrincipal Jwt token) {
+		StaffResponse staff = salonService.addStaff(salonId, TokenService.userIdOf(token), request);
+		return ResponseEntity.created(locationOf(staff.id())).body(staff);
+	}
+
+	@GetMapping("/{salonId}/staff")
+	@Operation(summary = "List a salon's staff members, so clients can choose who to book with")
+	List<StaffResponse> listStaff(@PathVariable Long salonId) {
+		return salonService.listStaff(salonId);
+	}
+
+	@PutMapping("/{salonId}/staff/{staffId}")
+	@Operation(summary = "Rename a staff member or change their working hours (owner only)")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
+	StaffResponse updateStaff(@PathVariable Long salonId, @PathVariable Long staffId,
+			@Valid @RequestBody StaffRequest request, @AuthenticationPrincipal Jwt token) {
+		return salonService.updateStaff(salonId, staffId, TokenService.userIdOf(token), request);
 	}
 
 	/**

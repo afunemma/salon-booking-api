@@ -45,6 +45,28 @@ public final class SalonDtos {
 		}
 	}
 
+	/**
+	 * A staff member to add or change. Leave out {@code startsAt} or {@code endsAt} to
+	 * use the salon's opening or closing time.
+	 */
+	public record StaffRequest(@NotBlank @Size(max = 255) String name, @Nullable LocalTime startsAt,
+			@Nullable LocalTime endsAt) {
+
+		@JsonIgnore
+		@AssertTrue(message = "startsAt must be before endsAt")
+		boolean isWorkingHoursValid() {
+			return startsAt == null || endsAt == null || startsAt.isBefore(endsAt);
+		}
+	}
+
+	public record StaffResponse(Long id, String name, LocalTime startsAt, LocalTime endsAt) {
+
+		static StaffResponse from(StaffMember staff) {
+			return new StaffResponse(staff.getId(), staff.getName(), staff.getWorkingHours().open(),
+					staff.getWorkingHours().close());
+		}
+	}
+
 	public record CreateServiceRequest(@NotBlank @Size(max = 255) String name,
 			@NotNull @Positive @Max(value = 720, message = "must be at most 12 hours") Integer durationMinutes,
 			@PositiveOrZero @Nullable Integer priceFromCents, @PositiveOrZero @Nullable Integer priceToCents) {
