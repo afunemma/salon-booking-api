@@ -27,6 +27,12 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 	List<Booking> findByStaffIdAndStatusAndBookingDateGreaterThanEqualOrderByBookingDateAscStartTimeAsc(Long staffId,
 			BookingStatus status, LocalDate from);
 
+	List<Booking> findByStaffIdAndStatusAndBookingDateBetweenOrderByBookingDateAscStartTimeAsc(Long staffId,
+			BookingStatus status, LocalDate first, LocalDate last);
+
+	List<Booking> findBySalonIdAndStatusAndBookingDateBetweenOrderByBookingDateAscStartTimeAsc(Long salonId,
+			BookingStatus status, LocalDate first, LocalDate last);
+
 	long countBySalonIdAndStatusAndBookingDateBetween(Long salonId, BookingStatus status, LocalDate from, LocalDate to);
 
 	/** One row of {@link #countByStatus}. */

@@ -1,6 +1,7 @@
 package io.github.afunemma.salonbooking.salon;
 
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
@@ -93,6 +94,33 @@ public final class SalonDtos {
 			return new StaffResponse(staff.getId(), staff.getName(), schedule.hours().open(), schedule.hours().close(),
 					schedule.days().stream().sorted().toList(), breakTime != null ? breakTime.start() : null,
 					breakTime != null ? breakTime.end() : null);
+		}
+	}
+
+	/**
+	 * @param staffId who is away; leave it out to close the whole salon
+	 * @param firstDay first day off
+	 * @param lastDay last day off, included; the same as firstDay for a single day
+	 */
+	public record TimeOffRequest(@Nullable Long staffId, @NotNull LocalDate firstDay, @NotNull LocalDate lastDay) {
+
+		@JsonIgnore
+		@AssertTrue(message = "lastDay must not be before firstDay")
+		boolean isRangeValid() {
+			return firstDay == null || lastDay == null || !lastDay.isBefore(firstDay);
+		}
+	}
+
+	/**
+	 * @param staffId {@code null} when the whole salon is closed
+	 */
+	public record TimeOffResponse(Long id, @Nullable Long staffId, @Nullable String staffName, LocalDate firstDay,
+			LocalDate lastDay) {
+
+		static TimeOffResponse from(TimeOff timeOff) {
+			StaffMember staff = timeOff.getStaff();
+			return new TimeOffResponse(timeOff.getId(), staff != null ? staff.getId() : null,
+					staff != null ? staff.getName() : null, timeOff.getFirstDay(), timeOff.getLastDay());
 		}
 	}
 

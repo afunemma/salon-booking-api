@@ -29,6 +29,7 @@ import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonService;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import io.github.afunemma.salonbooking.salon.StaffMember;
+import io.github.afunemma.salonbooking.salon.TimeOffService;
 import io.github.afunemma.salonbooking.scheduling.OpeningHours;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -61,8 +62,8 @@ class BookingServiceTest {
 				new AppProperties.Security(null, null, Duration.ofHours(1),
 						new AppProperties.RateLimit(20, Duration.ofMinutes(1)),
 						new AppProperties.RateLimit(5, Duration.ofMinutes(15))));
-		bookingService = new BookingService(bookings, salonService, clock, properties, meters,
-				new CancelLinks(properties));
+		bookingService = new BookingService(bookings, salonService, mock(TimeOffService.class), clock, properties,
+				meters, new CancelLinks(properties));
 
 		Salon salon = new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)), 1L);
 		ReflectionTestUtils.setField(salon, "id", 1L);

@@ -36,6 +36,8 @@ import io.github.afunemma.salonbooking.common.NotFoundException;
 import io.github.afunemma.salonbooking.salon.SalonService;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import io.github.afunemma.salonbooking.salon.StaffMember;
+import io.github.afunemma.salonbooking.salon.TimeOff;
+import io.github.afunemma.salonbooking.salon.TimeOffService;
 import io.github.afunemma.salonbooking.scheduling.SlotFinder;
 import io.github.afunemma.salonbooking.scheduling.TimeRange;
 import io.github.afunemma.salonbooking.scheduling.WorkSchedule;
@@ -61,6 +63,8 @@ public class BookingService {
 
 	private final SalonService salonService;
 
+	private final TimeOffService timeOffService;
+
 	private final Clock clock;
 
 	private final Duration slotStep;
@@ -77,10 +81,11 @@ public class BookingService {
 	 */
 	private static final int MAX_STATS_DAYS = 366;
 
-	BookingService(BookingRepository bookings, SalonService salonService, Clock clock, AppProperties properties,
-			MeterRegistry meters, CancelLinks cancelLinks) {
+	BookingService(BookingRepository bookings, SalonService salonService, TimeOffService timeOffService, Clock clock,
+			AppProperties properties, MeterRegistry meters, CancelLinks cancelLinks) {
 		this.bookings = bookings;
 		this.salonService = salonService;
+		this.timeOffService = timeOffService;
 		this.clock = clock;
 		this.cancelLinks = cancelLinks;
 		this.slotStep = properties.booking().slotStep();
@@ -293,7 +298,7 @@ public class BookingService {
 
 	/**
 	 * Each staff member's free start times on a date, in the same order as {@code staff}:
-	 * none on their days off, and never during their working hours' break. The day's
+	 * none on their days off or time off, and never during their break. The day's
 	 * bookings are loaded in one query and then split by staff member.
 	 */
 	private Map<StaffMember, List<LocalTime>> freeTimesByStaff(ServiceOffering service, List<StaffMember> staff,
@@ -309,9 +314,10 @@ public class BookingService {
 			.stream()
 			.collect(Collectors.groupingBy(booking -> booking.getStaff().getId(),
 					Collectors.mapping(Booking::getTimeRange, Collectors.toList())));
+		List<TimeOff> timeOff = timeOffService.onDate(service.getSalon().getId(), date);
 		for (StaffMember member : staff) {
 			WorkSchedule schedule = member.getSchedule();
-			if (!schedule.worksOn(date.getDayOfWeek())) {
+			if (!schedule.worksOn(date.getDayOfWeek()) || timeOff.stream().anyMatch(off -> off.appliesTo(member))) {
 				result.put(member, List.of());
 				continue;
 			}

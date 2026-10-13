@@ -102,6 +102,9 @@ public class SalonService {
 	@Transactional
 	public StaffResponse updateStaff(Long salonId, Long staffId, Long userId, StaffRequest request) {
 		Salon salon = findOwnedSalon(salonId, userId);
+		// Locked like a booking, so a client can't book a time the new schedule removes
+		// between the check below and the save.
+		lockSalon(salonId);
 		StaffMember member = findStaff(salonId, staffId);
 		WorkSchedule schedule = schedule(salon, request);
 		checkNoBookingsStranded(staffId, schedule);
