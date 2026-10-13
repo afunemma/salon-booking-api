@@ -58,7 +58,7 @@ class BookingServiceTest {
 		Clock clock = Clock.fixed(FixedClockConfiguration.NOW.toInstant(), FixedClockConfiguration.NOW.getZone());
 		AppProperties properties = new AppProperties(ZoneId.of("Africa/Johannesburg"),
 				URI.create("http://localhost:8080"), new AppProperties.Booking(Duration.ofMinutes(15)),
-				new AppProperties.Reminders("-"),
+				new AppProperties.Reminders("-", AppProperties.WhatsApp.DISABLED),
 				new AppProperties.Security(null, null, Duration.ofHours(1),
 						new AppProperties.RateLimit(20, Duration.ofMinutes(1)),
 						new AppProperties.RateLimit(5, Duration.ofMinutes(15))));

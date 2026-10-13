@@ -2,6 +2,9 @@ package io.github.afunemma.salonbooking.reminder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +21,8 @@ class LoggingReminderSenderTest {
 	@Test
 	@DisplayName("Sending through the logging sender never fails")
 	void sendDoesNotThrow() {
-		new LoggingReminderSender().send(new ReminderMessage(1L, "082 123 4567", "Hi"));
+		new LoggingReminderSender().send(new ReminderMessage(1L, "082 123 4567", "Thabo", "Haircut", "Sipho's Cuts",
+				LocalDate.of(2030, 1, 7), LocalTime.of(10, 0), "https://example.com/cancel"));
 	}
 
 }

@@ -46,6 +46,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
+		<!-- HTTP client for sending WhatsApp reminders through Meta's Cloud API. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-restclient</artifactId>
+		</dependency>
 		<!-- Server-side HTML for the client's cancel page; escapes values by default. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
