@@ -2,6 +2,9 @@ package io.github.afunemma.salonbooking.demo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +34,7 @@ class DemoDataInitializerTest {
 	private SalonService salonService;
 
 	@Test
-	@DisplayName("The demo profile creates one demo salon with services and two staff, and running it again changes nothing")
+	@DisplayName("The demo profile creates one demo salon with services and two staff with their own schedules; running it again changes nothing")
 	void createsDemoSalonOnce() {
 		// The initializer already ran at startup. Running it again must not create
 		// duplicates.
@@ -43,8 +46,15 @@ class DemoDataInitializerTest {
 			assertThat(salon.name()).isEqualTo("Demo Salon");
 			assertThat(salonService.listServices(salon.id())).extracting(ServiceResponse::name)
 				.containsExactlyInAnyOrder("Haircut", "Beard trim", "Box braids", "Manicure");
-			assertThat(salonService.listStaff(salon.id())).extracting(StaffResponse::name)
-				.containsExactly("Sipho", "Lindiwe");
+			assertThat(salonService.listStaff(salon.id())).satisfiesExactly(sipho -> {
+				assertThat(sipho.name()).isEqualTo("Sipho");
+				assertThat(sipho.workingDays()).doesNotContain(DayOfWeek.SUNDAY);
+				assertThat(sipho.breakStartsAt()).isEqualTo(LocalTime.of(13, 0));
+			}, lindiwe -> {
+				assertThat(lindiwe.name()).isEqualTo("Lindiwe");
+				assertThat(lindiwe.workingDays()).doesNotContain(DayOfWeek.SUNDAY, DayOfWeek.MONDAY);
+				assertThat(lindiwe.startsAt()).isEqualTo(LocalTime.of(12, 0));
+			});
 		});
 	}
 

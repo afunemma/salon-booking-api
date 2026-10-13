@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
@@ -37,6 +38,7 @@ import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import io.github.afunemma.salonbooking.salon.StaffMember;
 import io.github.afunemma.salonbooking.scheduling.SlotFinder;
 import io.github.afunemma.salonbooking.scheduling.TimeRange;
+import io.github.afunemma.salonbooking.scheduling.WorkSchedule;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -290,9 +292,9 @@ public class BookingService {
 	}
 
 	/**
-	 * Each staff member's free start times on a date, within their own working hours, in
-	 * the same order as {@code staff}. The day's bookings are loaded in one query and
-	 * then split by staff member.
+	 * Each staff member's free start times on a date, in the same order as {@code staff}:
+	 * none on their days off, and never during their working hours' break. The day's
+	 * bookings are loaded in one query and then split by staff member.
 	 */
 	private Map<StaffMember, List<LocalTime>> freeTimesByStaff(ServiceOffering service, List<StaffMember> staff,
 			LocalDate date) {
@@ -308,8 +310,15 @@ public class BookingService {
 			.collect(Collectors.groupingBy(booking -> booking.getStaff().getId(),
 					Collectors.mapping(Booking::getTimeRange, Collectors.toList())));
 		for (StaffMember member : staff) {
-			List<LocalTime> free = SlotFinder.findFreeSlots(member.getWorkingHours(),
-					takenByStaff.getOrDefault(member.getId(), List.of()), service.getDuration(), slotStep);
+			WorkSchedule schedule = member.getSchedule();
+			if (!schedule.worksOn(date.getDayOfWeek())) {
+				result.put(member, List.of());
+				continue;
+			}
+			// A break is treated like a booking that is always there.
+			List<TimeRange> taken = new ArrayList<>(takenByStaff.getOrDefault(member.getId(), List.of()));
+			taken.addAll(schedule.breaks());
+			List<LocalTime> free = SlotFinder.findFreeSlots(schedule.hours(), taken, service.getDuration(), slotStep);
 			if (date.equals(today)) {
 				LocalTime now = LocalTime.now(clock);
 				free = free.stream().filter(start -> start.isAfter(now)).toList();

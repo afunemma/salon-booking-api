@@ -1,10 +1,16 @@
 package io.github.afunemma.salonbooking.salon;
 
+import java.time.DayOfWeek;
 import java.time.LocalTime;
+import java.util.List;
+import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import io.github.afunemma.salonbooking.scheduling.TimeRange;
+import io.github.afunemma.salonbooking.scheduling.WorkSchedule;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
@@ -46,24 +52,47 @@ public final class SalonDtos {
 	}
 
 	/**
-	 * A staff member to add or change. Leave out {@code startsAt} or {@code endsAt} to
-	 * use the salon's opening or closing time.
+	 * A staff member to add, or to replace (PUT) as a whole. Left-out fields get their
+	 * defaults: the salon's opening and closing time, every day of the week, no break.
+	 *
+	 * @param workingDays e.g. ["TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+	 * @param breakStartsAt start of a daily break, e.g. lunch; give both ends or neither
 	 */
 	public record StaffRequest(@NotBlank @Size(max = 255) String name, @Nullable LocalTime startsAt,
-			@Nullable LocalTime endsAt) {
+			@Nullable LocalTime endsAt,
+			@Nullable @Size(min = 1, message = "must contain at least one day") Set<DayOfWeek> workingDays,
+			@Nullable LocalTime breakStartsAt, @Nullable LocalTime breakEndsAt) {
+
+		/** Just a name and hours: every day, no break. */
+		public StaffRequest(String name, @Nullable LocalTime startsAt, @Nullable LocalTime endsAt) {
+			this(name, startsAt, endsAt, null, null, null);
+		}
 
 		@JsonIgnore
 		@AssertTrue(message = "startsAt must be before endsAt")
 		boolean isWorkingHoursValid() {
 			return startsAt == null || endsAt == null || startsAt.isBefore(endsAt);
 		}
+
+		@JsonIgnore
+		@AssertTrue(message = "a break needs both breakStartsAt and breakEndsAt, with the start first")
+		boolean isBreakValid() {
+			if (breakStartsAt == null || breakEndsAt == null) {
+				return breakStartsAt == null && breakEndsAt == null;
+			}
+			return breakStartsAt.isBefore(breakEndsAt);
+		}
 	}
 
-	public record StaffResponse(Long id, String name, LocalTime startsAt, LocalTime endsAt) {
+	public record StaffResponse(Long id, String name, LocalTime startsAt, LocalTime endsAt, List<DayOfWeek> workingDays,
+			@Nullable LocalTime breakStartsAt, @Nullable LocalTime breakEndsAt) {
 
 		static StaffResponse from(StaffMember staff) {
-			return new StaffResponse(staff.getId(), staff.getName(), staff.getWorkingHours().open(),
-					staff.getWorkingHours().close());
+			WorkSchedule schedule = staff.getSchedule();
+			TimeRange breakTime = schedule.breakTime();
+			return new StaffResponse(staff.getId(), staff.getName(), schedule.hours().open(), schedule.hours().close(),
+					schedule.days().stream().sorted().toList(), breakTime != null ? breakTime.start() : null,
+					breakTime != null ? breakTime.end() : null);
 		}
 	}
 

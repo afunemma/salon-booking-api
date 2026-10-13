@@ -1,8 +1,10 @@
 package io.github.afunemma.salonbooking.demo;
 
 import java.security.SecureRandom;
+import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.Base64;
+import java.util.EnumSet;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -22,6 +24,7 @@ import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.StaffRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.StaffResponse;
 import io.github.afunemma.salonbooking.salon.SalonService;
+import io.github.afunemma.salonbooking.salon.ScheduleConflictException;
 
 /**
  * With the {@code demo} profile, creates a sample salon with services and two staff
@@ -74,9 +77,9 @@ class DemoDataInitializer implements ApplicationRunner {
 	}
 
 	/**
-	 * Names the first staff member and adds a second who only works afternoons, so
-	 * visitors see that each staff member has their own hours. Skipped once the salon has
-	 * more than one staff member.
+	 * Gives the demo salon two staff members with different schedules, so visitors see
+	 * that each has their own hours, days off and break. Each step runs once: it is
+	 * skipped when the salon already has a second staff member, or a break.
 	 */
 	private void addDemoStaff(Long ownerId) {
 		for (SalonResponse salon : salonService.listOwnedSalons(ownerId)) {
@@ -87,7 +90,30 @@ class DemoDataInitializer implements ApplicationRunner {
 				salonService.addStaff(salon.id(), ownerId,
 						new StaffRequest("Lindiwe", LocalTime.of(12, 0), LocalTime.of(20, 0)));
 				log.info("Demo staff added: salon={}", salon.id());
+				staff = salonService.listStaff(salon.id());
 			}
+			if (staff.size() == 2 && staff.stream().allMatch(member -> member.breakStartsAt() == null)) {
+				addDemoSchedules(salon.id(), ownerId, staff);
+			}
+		}
+	}
+
+	/**
+	 * Sipho: Monday to Saturday with a lunch break. Lindiwe: Tuesday to Saturday
+	 * afternoons. On the live demo, visitors' bookings may already clash with these; then
+	 * the change is refused, which is fine for demo data, so it is logged and skipped.
+	 */
+	private void addDemoSchedules(Long salonId, Long ownerId, List<StaffResponse> staff) {
+		try {
+			salonService.updateStaff(salonId, staff.get(0).id(), ownerId, new StaffRequest("Sipho", null, null,
+					EnumSet.range(DayOfWeek.MONDAY, DayOfWeek.SATURDAY), LocalTime.of(13, 0), LocalTime.of(13, 30)));
+			salonService.updateStaff(salonId, staff.get(1).id(), ownerId,
+					new StaffRequest("Lindiwe", LocalTime.of(12, 0), LocalTime.of(20, 0),
+							EnumSet.range(DayOfWeek.TUESDAY, DayOfWeek.SATURDAY), null, null));
+			log.info("Demo schedules added: salon={}", salonId);
+		}
+		catch (ScheduleConflictException ex) {
+			log.warn("Demo schedules not added: salon={} reason={}", salonId, ex.getMessage());
 		}
 	}
 

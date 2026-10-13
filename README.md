@@ -14,7 +14,7 @@ A REST API that lets clients book appointments at salons (barbers, hair, braids,
 
 A 2-minute tour in Swagger UI (click an endpoint → **Try it out** → **Execute**):
 
-1. **See free times as a client:** `GET /api/v1/salons/{salonId}/free-slots` with `salonId` **1** (the Demo Salon), `serviceId` **1**, and tomorrow's date. The Demo Salon has two staff (`GET /api/v1/salons/1/staff`): Sipho works all day, Lindiwe from 12:00. Add `staffId` to see one person's times.
+1. **See free times as a client:** `GET /api/v1/salons/{salonId}/free-slots` with `salonId` **1** (the Demo Salon), `serviceId` **1**, and tomorrow's date. The Demo Salon has two staff (`GET /api/v1/salons/1/staff`): Sipho works Monday to Saturday with lunch at 13:00, Lindiwe Tuesday to Saturday from 12:00. Add `staffId` to see one person's times.
 2. **Book one, without an account:** `POST /api/v1/salons/1/bookings` with one of those times. After 12:00, book the same time twice: the second booking goes to the other staff member. A third gets `409 Slot unavailable`.
 3. **Become a salon owner:** `POST /api/v1/auth/register`, then `POST /api/v1/auth/login`. Copy the `accessToken`, click **Authorize** 🔒 at the top of the page, and paste it in.
 4. **Manage your own salon:** create one (`POST /api/v1/salons`), add a service, book it, and open your day view (`GET .../bookings`). Then try the Demo Salon's day view: you get `403 Forbidden`, because it isn't yours.
@@ -91,7 +91,10 @@ flowchart LR
     account --> common
     booking --> common
     salon --> common
+    booking -. "implements ActiveBookings" .-> salon
 ```
+
+`salon` needs to check schedule changes against bookings, but `booking` already depends on `salon`. Instead of a cycle, `salon` defines an `ActiveBookings` interface that `booking` implements: dependency inversion.
 
 ### Booking a slot
 
@@ -155,6 +158,9 @@ erDiagram
         varchar name
         time starts_at "within salon hours"
         time ends_at
+        smallint working_days "bit mask, Mon=1 ... Sun=64"
+        time break_starts_at "optional"
+        time break_ends_at
     }
     booking {
         bigint id PK
@@ -211,9 +217,9 @@ Clients book **without an account**. Salon owners register, log in, and send the
 | `GET` | `/api/v1/salons/{salonId}` | Anyone | Get a salon |
 | `POST` | `/api/v1/salons/{salonId}/services` | 🔒 Owner | Add a service, e.g. a 35-minute haircut at R50–R100 |
 | `GET` | `/api/v1/salons/{salonId}/services` | Anyone | List a salon's services |
-| `POST` | `/api/v1/salons/{salonId}/staff` | 🔒 Owner | Add a staff member with their own working hours |
+| `POST` | `/api/v1/salons/{salonId}/staff` | 🔒 Owner | Add a staff member with their own hours, working days and break |
 | `GET` | `/api/v1/salons/{salonId}/staff` | Anyone | List a salon's staff members |
-| `PUT` | `/api/v1/salons/{salonId}/staff/{staffId}` | 🔒 Owner | Rename a staff member or change their hours |
+| `PUT` | `/api/v1/salons/{salonId}/staff/{staffId}` | 🔒 Owner | Change a staff member's name, hours, working days or break. `409` if existing bookings would no longer fit |
 | `GET` | `/api/v1/salons/{salonId}/free-slots?serviceId=&date=&staffId=` | Anyone | Free start times for a service on a date; `staffId` is optional |
 | `POST` | `/api/v1/salons/{salonId}/bookings` | Anyone | Book a free slot, with a chosen staff member or the first one free. The response includes the client's `cancelUrl` |
 | `GET` | `/api/v1/salons/{salonId}/bookings?date=` | 🔒 Owner | The salon's day view |
@@ -333,10 +339,19 @@ salon ──< service_offering
 
 ## Staff members
 
-Every salon starts with one staff member, "Owner", working the salon's hours, so a solo barber never has to set anything up. Bigger salons add staff, each with their own working hours ([ADR-0011](docs/adr/0011-staff-members-with-own-hours.md)).
+Every salon starts with one staff member, "Owner", working the salon's hours every day, so a solo barber never has to set anything up. Bigger salons add staff, each with their own working hours ([ADR-0011](docs/adr/0011-staff-members-with-own-hours.md)), working days and an optional daily break ([ADR-0012](docs/adr/0012-weekly-days-off-and-breaks.md)).
+
+```json
+{"name": "Lindiwe", "startsAt": "12:00", "endsAt": "20:00",
+ "workingDays": ["TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"],
+ "breakStartsAt": "15:00", "breakEndsAt": "15:30"}
+```
 
 - **Parallel bookings:** two stylists can both start at 10:00; one stylist can't be double-booked.
 - **Clients may choose who to book with,** or leave it out and get the first staff member who is free.
+- **Days off and breaks:** no free times on a day off; the break is handed to `SlotFinder` as if it were a booking, so the slot logic didn't change. The rules live in `WorkSchedule`, plain Java with unit tests.
+- **A schedule change never strands a booking.** If existing bookings would fall on a new day off, outside the new hours or in the break, the change is refused with `409`, naming the first clash. The owner cancels those bookings first.
+- **No package cycle for that check:** `salon` defines an `ActiveBookings` interface and `booking` implements it (dependency inversion), so dependencies still point one way.
 - **The database guards the rules:** working hours must start before they end, and a composite foreign key rejects a booking with another salon's staff member.
 - **Safe upgrade:** migration V5 gave every existing salon an "Owner" staff member and moved its bookings to them. [`StaffMigrationTest`](src/test/java/io/github/afunemma/salonbooking/salon/StaffMigrationTest.java) runs it against a database that already has bookings.
 
@@ -442,7 +457,8 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] No-show rate over a date range for owners, to measure whether reminders work
 - [ ] Deliver reminders by WhatsApp or SMS
 - [x] Staff members with their own working hours; clients can choose who to book with
-- [ ] Days off and breaks, for salons and staff
+- [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings
+- [ ] Dated time off: holidays, leave, salon closures
 - [x] Specific error types, structured logging without personal data, typed config (PR #1)
 - [x] Architecture tests, coverage minimums, formatting and ADRs (PR #2)
 - [x] Architecture diagrams, business metrics (Prometheus) and login rate limiting
