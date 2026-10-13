@@ -2,9 +2,7 @@ package io.github.afunemma.salonbooking.reminder;
 
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -37,8 +35,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 class ReminderJob {
 
 	private static final Logger log = LoggerFactory.getLogger(ReminderJob.class);
-
-	private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH);
 
 	private final BookingReminderRepository reminders;
 
@@ -104,10 +100,9 @@ class ReminderJob {
 	 * instead of becoming a no-show.
 	 */
 	private ReminderMessage messageFor(Booking booking) {
-		String text = "Hi %s, a reminder of your %s at %s tomorrow, %s, at %s. Can't make it? Cancel here so someone else can have the slot: %s"
-			.formatted(booking.getClientName(), booking.getService().getName(), booking.getSalon().getName(),
-					DAY.format(booking.getBookingDate()), booking.getStartTime(), cancelLinks.urlFor(booking.getId()));
-		return new ReminderMessage(booking.getId(), booking.getClientPhone(), text);
+		return new ReminderMessage(booking.getId(), booking.getClientPhone(), booking.getClientName(),
+				booking.getService().getName(), booking.getSalon().getName(), booking.getBookingDate(),
+				booking.getStartTime(), cancelLinks.urlFor(booking.getId()));
 	}
 
 }

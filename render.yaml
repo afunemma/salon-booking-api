@@ -31,3 +31,12 @@ services:
       # Signs clients' cancel links. A separate key, so each key has one job.
       - key: APP_SECURITY_CANCEL_LINK_SECRET
         generateValue: true
+      # WhatsApp reminders (ADR-0014). Off until a Meta account is connected; reminders are
+      # then only logged. To switch on: set ENABLED to true and enter the two values below in
+      # the Render dashboard.
+      - key: APP_REMINDERS_WHATSAPP_ENABLED
+        value: "false"
+      - key: APP_REMINDERS_WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: APP_REMINDERS_WHATSAPP_ACCESS_TOKEN
+        sync: false

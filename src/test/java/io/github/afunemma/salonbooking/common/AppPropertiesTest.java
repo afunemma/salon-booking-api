@@ -18,7 +18,9 @@ class AppPropertiesTest {
 
 	private static final String[] VALID = { "app.time-zone=Africa/Johannesburg",
 			"app.public-base-url=https://salon.example.com", "app.booking.slot-step=15m",
-			"app.reminders.cron=0 0 18-21 * * *", "app.security.token-lifetime=1h",
+			"app.reminders.cron=0 0 18-21 * * *", "app.reminders.whatsapp.api-url=https://graph.facebook.com/v23.0",
+			"app.reminders.whatsapp.template-name=appointment_reminder", "app.reminders.whatsapp.template-language=en",
+			"app.reminders.whatsapp.default-country-code=27", "app.security.token-lifetime=1h",
 			"app.security.login-attempts-per-ip.attempts=20", "app.security.login-attempts-per-ip.window=1m",
 			"app.security.failed-logins-per-email.attempts=5", "app.security.failed-logins-per-email.window=15m" };
 
@@ -52,6 +54,39 @@ class AppPropertiesTest {
 	void rejectsCancelLinkSecretShorterThan32Characters() {
 		runner.withPropertyValues(VALID)
 			.withPropertyValues("app.security.cancel-link-secret=too-short")
+			.run(context -> assertThat(context).hasFailed());
+	}
+
+	@Test
+	void whatsAppIsOffByDefault() {
+		runner.withPropertyValues(VALID)
+			.run(context -> assertThat(context.getBean(AppProperties.class).reminders().whatsapp().enabled())
+				.isFalse());
+	}
+
+	@Test
+	void rejectsWhatsAppSwitchedOnWithoutNumberAndToken() {
+		runner.withPropertyValues(VALID)
+			.withPropertyValues("app.reminders.whatsapp.enabled=true")
+			.run(context -> assertThat(context).hasFailed());
+		runner.withPropertyValues(VALID)
+			.withPropertyValues("app.reminders.whatsapp.enabled=true", "app.reminders.whatsapp.phone-number-id=123")
+			.run(context -> assertThat(context).hasFailed());
+	}
+
+	@Test
+	void bindsWhatsAppSettingsWhenSwitchedOn() {
+		runner.withPropertyValues(VALID)
+			.withPropertyValues("app.reminders.whatsapp.enabled=true", "app.reminders.whatsapp.phone-number-id=123",
+					"app.reminders.whatsapp.access-token=test-token")
+			.run(context -> assertThat(context.getBean(AppProperties.class).reminders().whatsapp().phoneNumberId())
+				.isEqualTo("123"));
+	}
+
+	@Test
+	void rejectsCountryCodeThatIsNotDigits() {
+		runner.withPropertyValues(VALID)
+			.withPropertyValues("app.reminders.whatsapp.default-country-code=+27")
 			.run(context -> assertThat(context).hasFailed());
 	}
 

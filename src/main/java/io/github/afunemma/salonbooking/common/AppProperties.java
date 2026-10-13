@@ -10,9 +10,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -33,8 +35,37 @@ public record AppProperties(@NotNull ZoneId timeZone, @NotNull URI publicBaseUrl
 	 * @param cron when the reminder job runs, in salon time, e.g. {@code 0 0 18-21 * * *}
 	 * for every hour from 18:00 to 21:00. {@code -} switches it off. Spring checks the
 	 * cron syntax at startup.
+	 * @param whatsapp sending reminders by WhatsApp instead of only logging them
 	 */
-	public record Reminders(@NotBlank String cron) {
+	public record Reminders(@NotBlank String cron, @Valid @NotNull WhatsApp whatsapp) {
+	}
+
+	/**
+	 * Meta's WhatsApp Cloud API. Off by default: reminders are then only logged.
+	 *
+	 * @param enabled send real WhatsApp messages
+	 * @param apiUrl Meta's Graph API, including its version
+	 * @param phoneNumberId the sending WhatsApp number's id, from Meta's API Setup page
+	 * @param accessToken permanent token of a Meta system user; set it with the
+	 * {@code APP_REMINDERS_WHATSAPP_ACCESS_TOKEN} environment variable, never in a
+	 * committed file
+	 * @param templateName the approved message template, see ADR-0014
+	 * @param templateLanguage the template's language code, e.g. {@code en}
+	 * @param defaultCountryCode added to local numbers such as 082 123 4567; 27 = South
+	 * Africa
+	 */
+	public record WhatsApp(boolean enabled, @NotNull URI apiUrl, @Nullable String phoneNumberId,
+			@Nullable String accessToken, @NotBlank String templateName, @NotBlank String templateLanguage,
+			@NotBlank @Pattern(regexp = "[0-9]{1,3}") String defaultCountryCode) {
+
+		public static final WhatsApp DISABLED = new WhatsApp(false, URI.create("https://graph.facebook.com/v23.0"),
+				null, null, "appointment_reminder", "en", "27");
+
+		@AssertTrue(message = "phone-number-id and access-token are required when WhatsApp is enabled")
+		public boolean isConfiguredWhenEnabled() {
+			return !enabled || (phoneNumberId != null && !phoneNumberId.isBlank() && accessToken != null
+					&& !accessToken.isBlank());
+		}
 	}
 
 	/**
