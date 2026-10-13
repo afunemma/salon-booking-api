@@ -18,3 +18,4 @@ New decisions get the next number. If a decision is later replaced, its status b
 | [0010](0010-signed-cancel-links-for-clients.md) | Let clients cancel from a signed link | Accepted |
 | [0011](0011-staff-members-with-own-hours.md) | Staff members with their own hours, and overlaps per staff member | Accepted |
 | [0012](0012-weekly-days-off-and-breaks.md) | Weekly days off and daily breaks, without stranding bookings | Accepted |
+| [0013](0013-dated-time-off.md) | Dated time off for staff leave and salon closures | Accepted |

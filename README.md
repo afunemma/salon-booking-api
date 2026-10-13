@@ -130,6 +130,8 @@ erDiagram
     salon ||--o{ booking : has
     service_offering ||--o{ booking : "booked as"
     staff_member ||--o{ booking : serves
+    salon ||--o{ time_off : "closes for"
+    staff_member ||--o{ time_off : takes
     booking ||--o| booking_reminder : "reminded by"
 
     app_user {
@@ -173,6 +175,13 @@ erDiagram
         time start_time
         time end_time
         varchar status "BOOKED, CANCELLED, COMPLETED, NO_SHOW"
+    }
+    time_off {
+        bigint id PK
+        bigint salon_id FK
+        bigint staff_member_id FK "null = whole salon"
+        date first_day
+        date last_day "included"
     }
     booking_reminder {
         bigint id PK
@@ -220,6 +229,9 @@ Clients book **without an account**. Salon owners register, log in, and send the
 | `POST` | `/api/v1/salons/{salonId}/staff` | 🔒 Owner | Add a staff member with their own hours, working days and break |
 | `GET` | `/api/v1/salons/{salonId}/staff` | Anyone | List a salon's staff members |
 | `PUT` | `/api/v1/salons/{salonId}/staff/{staffId}` | 🔒 Owner | Change a staff member's name, hours, working days or break. `409` if existing bookings would no longer fit |
+| `POST` | `/api/v1/salons/{salonId}/time-off` | 🔒 Owner | Add leave for a staff member, or close the whole salon, for a range of days. `409` if bookings fall in it |
+| `GET` | `/api/v1/salons/{salonId}/time-off` | 🔒 Owner | List time off that hasn't ended yet |
+| `DELETE` | `/api/v1/salons/{salonId}/time-off/{timeOffId}` | 🔒 Owner | Remove time off |
 | `GET` | `/api/v1/salons/{salonId}/free-slots?serviceId=&date=&staffId=` | Anyone | Free start times for a service on a date; `staffId` is optional |
 | `POST` | `/api/v1/salons/{salonId}/bookings` | Anyone | Book a free slot, with a chosen staff member or the first one free. The response includes the client's `cancelUrl` |
 | `GET` | `/api/v1/salons/{salonId}/bookings?date=` | 🔒 Owner | The salon's day view |
@@ -350,7 +362,9 @@ Every salon starts with one staff member, "Owner", working the salon's hours eve
 - **Parallel bookings:** two stylists can both start at 10:00; one stylist can't be double-booked.
 - **Clients may choose who to book with,** or leave it out and get the first staff member who is free.
 - **Days off and breaks:** no free times on a day off; the break is handed to `SlotFinder` as if it were a booking, so the slot logic didn't change. The rules live in `WorkSchedule`, plain Java with unit tests.
-- **A schedule change never strands a booking.** If existing bookings would fall on a new day off, outside the new hours or in the break, the change is refused with `409`, naming the first clash. The owner cancels those bookings first.
+- **Dated time off** ([ADR-0013](docs/adr/0013-dated-time-off.md)): leave for one staff member, or the whole salon closed, e.g. `{"firstDay": "2030-12-24", "lastDay": "2030-12-26"}` without a `staffId`. Nobody who is off gets free times.
+- **A schedule change or new time off never strands a booking.** If existing bookings would fall on a new day off, outside the new hours, in the break or in time off, the change is refused with `409`, naming the first clash. The owner cancels those bookings first.
+- **No race with clients booking:** schedule changes and new time off lock the salon row, as booking does, so a client can't book a slot that is being taken away at the same moment.
 - **No package cycle for that check:** `salon` defines an `ActiveBookings` interface and `booking` implements it (dependency inversion), so dependencies still point one way.
 - **The database guards the rules:** working hours must start before they end, and a composite foreign key rejects a booking with another salon's staff member.
 - **Safe upgrade:** migration V5 gave every existing salon an "Owner" staff member and moved its bookings to them. [`StaffMigrationTest`](src/test/java/io/github/afunemma/salonbooking/salon/StaffMigrationTest.java) runs it against a database that already has bookings.
@@ -458,7 +472,7 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [ ] Deliver reminders by WhatsApp or SMS
 - [x] Staff members with their own working hours; clients can choose who to book with
 - [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings
-- [ ] Dated time off: holidays, leave, salon closures
+- [x] Dated time off: staff leave and salon closures, without stranding bookings
 - [x] Specific error types, structured logging without personal data, typed config (PR #1)
 - [x] Architecture tests, coverage minimums, formatting and ADRs (PR #2)
 - [x] Architecture diagrams, business metrics (Prometheus) and login rate limiting
