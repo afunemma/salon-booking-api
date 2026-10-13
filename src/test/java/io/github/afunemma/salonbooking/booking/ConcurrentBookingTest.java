@@ -70,7 +70,7 @@ class ConcurrentBookingTest {
 				// identical ones.
 				LocalTime start = i % 2 == 0 ? LocalTime.of(10, 0) : LocalTime.of(10, 15);
 				CreateBookingRequest request = new CreateBookingRequest(haircutId, "Client " + i, "0820000000",
-						TOMORROW, start);
+						TOMORROW, start, null);
 				results.add(pool.submit(() -> {
 					startTogether.await();
 					try {

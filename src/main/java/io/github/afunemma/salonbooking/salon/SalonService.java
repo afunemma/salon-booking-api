@@ -14,6 +14,8 @@ import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
+import io.github.afunemma.salonbooking.salon.SalonDtos.StaffRequest;
+import io.github.afunemma.salonbooking.salon.SalonDtos.StaffResponse;
 import io.github.afunemma.salonbooking.scheduling.OpeningHours;
 
 @Service
@@ -24,17 +26,27 @@ public class SalonService {
 
 	private final SalonRepository salons;
 
+	/**
+	 * Name of the staff member every new salon starts with. In a salon of one person,
+	 * that's the owner; they can rename it.
+	 */
+	static final String FIRST_STAFF_NAME = "Owner";
+
 	private final ServiceOfferingRepository services;
 
-	SalonService(SalonRepository salons, ServiceOfferingRepository services) {
+	private final StaffMemberRepository staff;
+
+	SalonService(SalonRepository salons, ServiceOfferingRepository services, StaffMemberRepository staff) {
 		this.salons = salons;
 		this.services = services;
+		this.staff = staff;
 	}
 
 	@Transactional
 	public SalonResponse createSalon(CreateSalonRequest request, Long ownerId) {
 		OpeningHours hours = new OpeningHours(request.opensAt(), request.closesAt());
 		Salon salon = salons.save(new Salon(request.name(), hours, ownerId));
+		staff.save(new StaffMember(salon, FIRST_STAFF_NAME, hours));
 		log.info("Salon created: id={} owner={}", salon.getId(), ownerId);
 		return SalonResponse.from(salon);
 	}
@@ -61,6 +73,50 @@ public class SalonService {
 	public List<ServiceResponse> listServices(Long salonId) {
 		findSalon(salonId);
 		return services.findBySalonIdOrderByName(salonId).stream().map(ServiceResponse::from).toList();
+	}
+
+	@Transactional
+	public StaffResponse addStaff(Long salonId, Long userId, StaffRequest request) {
+		Salon salon = findOwnedSalon(salonId, userId);
+		StaffMember member = staff.save(new StaffMember(salon, request.name(), workingHours(salon, request)));
+		log.info("Staff member added: id={} salon={}", member.getId(), salonId);
+		return StaffResponse.from(member);
+	}
+
+	@Transactional
+	public StaffResponse updateStaff(Long salonId, Long staffId, Long userId, StaffRequest request) {
+		Salon salon = findOwnedSalon(salonId, userId);
+		StaffMember member = findStaff(salonId, staffId);
+		member.update(request.name(), workingHours(salon, request));
+		log.info("Staff member updated: id={} salon={}", staffId, salonId);
+		return StaffResponse.from(member);
+	}
+
+	public List<StaffResponse> listStaff(Long salonId) {
+		findSalon(salonId);
+		return staffOf(salonId).stream().map(StaffResponse::from).toList();
+	}
+
+	/** The salon's staff members, in the order they were added. */
+	public List<StaffMember> staffOf(Long salonId) {
+		return staff.findBySalonIdOrderById(salonId);
+	}
+
+	/**
+	 * Finds a staff member and checks they work at the given salon, so one salon can't
+	 * book or change another's staff.
+	 */
+	public StaffMember findStaff(Long salonId, Long staffId) {
+		return staff.findById(staffId)
+			.filter(member -> salonId.equals(member.getSalon().getId()))
+			.orElseThrow(() -> new NotFoundException("Staff member " + staffId + " not found in salon " + salonId));
+	}
+
+	/** Missing times default to the salon's own opening and closing times. */
+	private static OpeningHours workingHours(Salon salon, StaffRequest request) {
+		OpeningHours salonHours = salon.getOpeningHours();
+		return new OpeningHours(request.startsAt() != null ? request.startsAt() : salonHours.open(),
+				request.endsAt() != null ? request.endsAt() : salonHours.close());
 	}
 
 	public Salon findSalon(Long salonId) {

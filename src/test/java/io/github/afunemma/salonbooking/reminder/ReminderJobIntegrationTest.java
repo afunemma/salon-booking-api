@@ -31,6 +31,8 @@ import io.github.afunemma.salonbooking.salon.Salon;
 import io.github.afunemma.salonbooking.salon.SalonRepository;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import io.github.afunemma.salonbooking.salon.ServiceOfferingRepository;
+import io.github.afunemma.salonbooking.salon.StaffMember;
+import io.github.afunemma.salonbooking.salon.StaffMemberRepository;
 import io.github.afunemma.salonbooking.scheduling.OpeningHours;
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -63,6 +65,9 @@ class ReminderJobIntegrationTest {
 	private ServiceOfferingRepository services;
 
 	@Autowired
+	private StaffMemberRepository staff;
+
+	@Autowired
 	private BookingRepository bookings;
 
 	@Autowired
@@ -76,12 +81,15 @@ class ReminderJobIntegrationTest {
 
 	private ServiceOffering haircut;
 
+	private StaffMember sipho;
+
 	@BeforeEach
 	void createSalonWithHaircut() {
 		AppUser owner = users.save(new AppUser(AuthTestSupport.uniqueEmail(), "{noop}not-used", Instant.now()));
 		Salon salon = salons
 			.save(new Salon("Sipho's Cuts", new OpeningHours(LocalTime.of(9, 0), LocalTime.of(20, 0)), owner.getId()));
 		haircut = services.save(new ServiceOffering(salon, "Haircut", Duration.ofMinutes(35), 5000, 10000));
+		sipho = staff.save(new StaffMember(salon, "Sipho", salon.getOpeningHours()));
 	}
 
 	@Test
@@ -140,7 +148,7 @@ class ReminderJobIntegrationTest {
 	}
 
 	private Booking book(String clientName, LocalDate date, LocalTime start) {
-		return bookings.save(new Booking(haircut, clientName, "082 123 4567", date, start));
+		return bookings.save(new Booking(haircut, sipho, clientName, "082 123 4567", date, start));
 	}
 
 	/** Every message the job passed to the sender for a booking. */

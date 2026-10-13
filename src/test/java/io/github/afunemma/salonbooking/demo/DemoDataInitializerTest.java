@@ -13,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 import io.github.afunemma.salonbooking.TestcontainersConfiguration;
 import io.github.afunemma.salonbooking.account.AppUserRepository;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
+import io.github.afunemma.salonbooking.salon.SalonDtos.StaffResponse;
 import io.github.afunemma.salonbooking.salon.SalonService;
 
 @SpringBootTest
@@ -30,7 +31,7 @@ class DemoDataInitializerTest {
 	private SalonService salonService;
 
 	@Test
-	@DisplayName("The demo profile creates one demo salon with services, and running it again changes nothing")
+	@DisplayName("The demo profile creates one demo salon with services and two staff, and running it again changes nothing")
 	void createsDemoSalonOnce() {
 		// The initializer already ran at startup. Running it again must not create
 		// duplicates.
@@ -42,6 +43,8 @@ class DemoDataInitializerTest {
 			assertThat(salon.name()).isEqualTo("Demo Salon");
 			assertThat(salonService.listServices(salon.id())).extracting(ServiceResponse::name)
 				.containsExactlyInAnyOrder("Haircut", "Beard trim", "Box braids", "Manicure");
+			assertThat(salonService.listStaff(salon.id())).extracting(StaffResponse::name)
+				.containsExactly("Sipho", "Lindiwe");
 		});
 	}
 

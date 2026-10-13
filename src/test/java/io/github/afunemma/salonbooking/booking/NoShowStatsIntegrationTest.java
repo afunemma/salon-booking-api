@@ -24,6 +24,7 @@ import io.github.afunemma.salonbooking.FixedClockConfiguration;
 import io.github.afunemma.salonbooking.TestcontainersConfiguration;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import io.github.afunemma.salonbooking.salon.ServiceOfferingRepository;
+import io.github.afunemma.salonbooking.salon.StaffMemberRepository;
 
 /**
  * The owner's no-show statistics, against a real PostgreSQL. "Today" is Sunday
@@ -47,6 +48,9 @@ class NoShowStatsIntegrationTest {
 
 	@Autowired
 	private ServiceOfferingRepository services;
+
+	@Autowired
+	private StaffMemberRepository staff;
 
 	private String owner;
 
@@ -128,7 +132,8 @@ class NoShowStatsIntegrationTest {
 	}
 
 	private void save(ServiceOffering service, LocalDate date, int hour, Consumer<Booking> outcome) {
-		Booking booking = new Booking(service, "Thabo", "082 123 4567", date, LocalTime.of(hour, 0));
+		Booking booking = new Booking(service, staff.findBySalonIdOrderById(service.getSalon().getId()).getFirst(),
+				"Thabo", "082 123 4567", date, LocalTime.of(hour, 0));
 		outcome.accept(booking);
 		bookings.save(booking);
 	}

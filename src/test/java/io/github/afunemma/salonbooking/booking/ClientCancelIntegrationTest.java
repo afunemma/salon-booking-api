@@ -24,6 +24,7 @@ import io.github.afunemma.salonbooking.AuthTestSupport;
 import io.github.afunemma.salonbooking.FixedClockConfiguration;
 import io.github.afunemma.salonbooking.TestcontainersConfiguration;
 import io.github.afunemma.salonbooking.salon.ServiceOfferingRepository;
+import io.github.afunemma.salonbooking.salon.StaffMemberRepository;
 
 /**
  * A client cancels their own booking from the link in their reminder, without an account.
@@ -47,6 +48,9 @@ class ClientCancelIntegrationTest {
 
 	@Autowired
 	private ServiceOfferingRepository services;
+
+	@Autowired
+	private StaffMemberRepository staff;
 
 	@Autowired
 	private CancelLinks cancelLinks;
@@ -124,8 +128,9 @@ class ClientCancelIntegrationTest {
 		MvcTestResult done = book("Thabo", "10:00");
 		long doneId = JsonPath.<Integer>read(AuthTestSupport.body(done), "$.id");
 		assertThat(asOwner("/api/v1/salons/" + salonId + "/bookings/" + doneId + "/complete", "")).hasStatusOk();
-		Booking started = bookings.save(new Booking(services.findById(haircutId).orElseThrow(), "Lindiwe",
-				"082 123 4567", LocalDate.of(2030, 1, 6), LocalTime.of(9, 45)));
+		Booking started = bookings.save(new Booking(services.findById(haircutId).orElseThrow(),
+				staff.findBySalonIdOrderById(salonId).getFirst(), "Lindiwe", "082 123 4567", LocalDate.of(2030, 1, 6),
+				LocalTime.of(9, 45)));
 		String startedLink = "/bookings/" + started.getId() + "/cancel?token=" + cancelLinks.tokenFor(started.getId());
 
 		for (String link : new String[] { cancelPath(done), startedLink }) {
