@@ -475,6 +475,7 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] Clients cancel their own booking from a signed link in the reminder
 - [x] No-show rate over a date range for owners, to measure whether reminders work
 - [x] WhatsApp delivery through Meta's Cloud API (built and tested; switched off until a Meta account is connected)
+- [ ] Salons send reminders from their own WhatsApp number, connected through Meta's Embedded Signup ([ADR-0015](docs/adr/0015-one-platform-whatsapp-number-for-now.md))
 - [x] Staff members with their own working hours; clients can choose who to book with
 - [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings
 - [x] Dated time off: staff leave and salon closures, without stranding bookings
