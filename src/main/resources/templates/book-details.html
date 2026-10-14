@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="|Book at ${salon.name}|">Book at Sipho's Cuts</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <h1>Your booking</h1>
+    <p class="appointment">
+        <strong th:text="${service.label}">Haircut · 35 min · R50–R100</strong><br>
+        at <strong th:text="${salon.name}">Sipho's Cuts</strong>
+        <th:block th:if="${staffName != null}">with <strong th:text="${staffName}">Sipho</strong></th:block><br>
+        <span th:text="${#temporals.format(form.date, 'EEEE d MMMM yyyy')}">Monday 7 January 2030</span>
+        at <span th:text="${#temporals.format(form.startTime, 'HH:mm')}">10:00</span>
+    </p>
+
+    <p th:if="${bookingError != null}" class="error" role="alert">
+        <span th:text="${bookingError}">10:00 was just booked by someone else</span>.
+        <a th:href="@{/salons/{id}/book(id=${salon.id},serviceId=${form.serviceId},date=${form.date},staffId=${form.staffId})}">Choose another time</a>
+    </p>
+
+    <form method="post" class="booking-form" th:action="@{/salons/{id}/book(id=${salon.id})}" th:object="${form}">
+        <input type="hidden" th:field="*{serviceId}">
+        <input type="hidden" th:field="*{date}">
+        <input type="hidden" th:field="*{startTime}">
+        <input type="hidden" th:field="*{staffId}">
+        <label>Your name
+            <input type="text" th:field="*{clientName}" maxlength="255" autocomplete="name" required>
+        </label>
+        <p class="error" th:if="${#fields.hasErrors('clientName')}" th:errors="*{clientName}">must not be blank</p>
+        <label>Phone number
+            <input type="tel" th:field="*{clientPhone}" placeholder="082 123 4567" autocomplete="tel" required>
+        </label>
+        <p class="error" th:if="${#fields.hasErrors('clientPhone')}" th:errors="*{clientPhone}">must be a phone number</p>
+        <p class="hint">We'll send you a reminder the evening before, with a link to cancel if you can't make it.</p>
+        <button type="submit">Book</button>
+    </form>
+    <p><a th:href="@{/salons/{id}/book(id=${salon.id},serviceId=${form.serviceId},date=${form.date},staffId=${form.staffId})}">Back to times</a></p>
+</main>
+</body>
+</html>

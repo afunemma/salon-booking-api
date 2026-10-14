@@ -10,7 +10,7 @@ import java.time.LocalTime;
  * @param state whether the client can still cancel
  */
 public record ClientBookingView(Long bookingId, String token, String clientName, String serviceName, String salonName,
-		LocalDate date, LocalTime startTime, State state) {
+		String staffName, LocalDate date, LocalTime startTime, State state) {
 
 	public enum State {
 

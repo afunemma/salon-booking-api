@@ -36,9 +36,12 @@ class ClientCancelController {
 	}
 
 	@GetMapping("/bookings/{bookingId}/cancel")
-	String show(@PathVariable Long bookingId, @RequestParam String token, Model model, HttpServletResponse response) {
+	String show(@PathVariable Long bookingId, @RequestParam String token,
+			@RequestParam(defaultValue = "false") boolean booked, Model model, HttpServletResponse response) {
 		return bookingService.findForClient(bookingId, token).map(booking -> {
 			model.addAttribute("booking", booking);
+			// Just booked through the booking page: say so above the booking.
+			model.addAttribute("booked", booked);
 			return PAGE;
 		}).orElseGet(() -> invalidLink(response));
 	}

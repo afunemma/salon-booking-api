@@ -10,10 +10,27 @@
         .done { color: #1d6b3a; font-weight: 600; }
         button { width: 100%; padding: 0.9rem; font-size: 1rem; border: 0; border-radius: 8px;
                  background: #b3261e; color: #fff; cursor: pointer; }
+        button.secondary, .booking-form button { background: #1f5f99; }
+        label { display: block; margin: 0 0 1rem; font-weight: 600; }
+        input, select { display: block; width: 100%; box-sizing: border-box; margin-top: 0.3rem; padding: 0.7rem;
+                        font-size: 1rem; border: 1px solid #bbb; border-radius: 8px; background: inherit; color: inherit; }
+        h2 { font-size: 1.1rem; margin-top: 1.5rem; }
+        .times { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+                 gap: 0.5rem; }
+        .times a { display: block; padding: 0.7rem 0; text-align: center; border: 1px solid #1f5f99; border-radius: 8px;
+                   color: #1f5f99; text-decoration: none; font-weight: 600; }
+        a { color: #1f5f99; }
+        .error { color: #b3261e; }
+        .hint { color: #666; font-size: 0.9rem; }
+        .booked { background: #e6f4ea; color: #1d6b3a; padding: 0.8rem; border-radius: 8px; font-weight: 600; }
         @media (prefers-color-scheme: dark) {
             body { background: #121212; color: #eee; }
             main { background: #1e1e1e; }
             .done { color: #7fd69a; }
+            a { color: #8ab8e6; }
+            .times a { color: #8ab8e6; border-color: #8ab8e6; }
+            .booked { background: #1d3b27; color: #7fd69a; }
+            .hint { color: #aaa; }
         }
     </style>
 </head>
