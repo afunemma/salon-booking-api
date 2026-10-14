@@ -268,7 +268,8 @@ public class BookingService {
 
 	private ClientBookingView clientView(Booking booking, String token) {
 		return new ClientBookingView(booking.getId(), token, booking.getClientName(), booking.getService().getName(),
-				booking.getSalon().getName(), booking.getBookingDate(), booking.getStartTime(), clientState(booking));
+				booking.getSalon().getName(), booking.getStaff().getName(), booking.getBookingDate(),
+				booking.getStartTime(), clientState(booking));
 	}
 
 	private ClientBookingView.State clientState(Booking booking) {

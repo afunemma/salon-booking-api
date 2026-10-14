@@ -62,6 +62,9 @@ class SecurityConfig {
 				// permission, checked in BookingService.
 				.requestMatchers("/bookings/*/cancel")
 				.permitAll()
+				// The client booking pages: anyone can book, as through the API.
+				.requestMatchers("/salons/*/book", "/salons/*/book/details")
+				.permitAll()
 				.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/health/**",
 						"/livez", "/readyz")
 				.permitAll()

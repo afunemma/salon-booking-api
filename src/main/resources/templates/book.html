@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="|Book at ${salon.name}|">Book at Sipho's Cuts</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <h1 th:text="|Book at ${salon.name}|">Book at Sipho's Cuts</h1>
+
+    <p th:if="${services.isEmpty()}">This salon hasn't added any services yet.</p>
+
+    <th:block th:unless="${services.isEmpty()}">
+        <!--/* A GET form: changing a choice and pressing "Show times" reloads the page. */-->
+        <form method="get" th:action="@{/salons/{id}/book(id=${salon.id})}" class="choices">
+            <label>Service
+                <select name="serviceId">
+                    <option th:each="service : ${services}" th:value="${service.id}" th:text="${service.label}"
+                            th:selected="${service.id == serviceId}">Haircut · 35 min · R50–R100</option>
+                </select>
+            </label>
+            <label>Day
+                <input type="date" name="date" th:value="${date}" th:min="${minDate}" th:max="${maxDate}" required>
+            </label>
+            <label th:if="${staff.size() > 1}">With
+                <select name="staffId">
+                    <option value="">Anyone</option>
+                    <option th:each="member : ${staff}" th:value="${member.id}" th:text="${member.name}"
+                            th:selected="${member.id == staffId}">Sipho</option>
+                </select>
+            </label>
+            <button type="submit" class="secondary">Show times</button>
+        </form>
+
+        <h2 th:text="${#temporals.format(date, 'EEEE d MMMM')}">Monday 7 January</h2>
+        <p th:if="${startTimes.isEmpty()}">No free times on this day. Please try another day.</p>
+        <ul class="times" th:unless="${startTimes.isEmpty()}">
+            <li th:each="time : ${startTimes}">
+                <a th:href="@{/salons/{id}/book/details(id=${salon.id},serviceId=${serviceId},date=${date},startTime=${time},staffId=${staffId})}"
+                   th:text="${#temporals.format(time, 'HH:mm')}">10:00</a>
+            </li>
+        </ul>
+    </th:block>
+</main>
+</body>
+</html>

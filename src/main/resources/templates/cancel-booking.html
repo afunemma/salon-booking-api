@@ -12,10 +12,12 @@
 <body>
 <main>
     <!--/* th:text escapes everything, so a name like "<script>" is shown as text, never run. */-->
+    <p th:if="${booked}" class="booked" role="status">You're booked! Keep this page: it's also your link to cancel.</p>
     <h1 th:text="|Hi ${booking.clientName}|">Hi Thabo</h1>
     <p class="appointment">
         <strong th:text="${booking.serviceName}">Haircut</strong> at
-        <strong th:text="${booking.salonName}">Sipho's Cuts</strong><br>
+        <strong th:text="${booking.salonName}">Sipho's Cuts</strong>
+        with <strong th:text="${booking.staffName}">Sipho</strong><br>
         <span th:text="${#temporals.format(booking.date, 'EEEE d MMMM yyyy')}">Monday 7 January 2030</span>
         at <span th:text="${#temporals.format(booking.startTime, 'HH:mm')}">10:00</span>
     </p>

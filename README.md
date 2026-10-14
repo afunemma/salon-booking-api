@@ -12,7 +12,9 @@ A REST API that lets clients book appointments at salons (barbers, hair, braids,
 
 > ⏳ The demo runs on a free server. An uptime monitor keeps it awake, so it normally responds in under a second. Right after a restart or a new deploy, give it **up to 3 minutes** to start.
 
-A 2-minute tour in Swagger UI (click an endpoint → **Try it out** → **Execute**):
+**📱 Book like a client:** [salon-booking-api-wguy.onrender.com/salons/1/book](https://salon-booking-api-wguy.onrender.com/salons/1/book). Pick a service and a time, enter a name and phone number, and you land on your own booking page with a cancel button. Best on a phone.
+
+A 2-minute tour of the API in Swagger UI (click an endpoint → **Try it out** → **Execute**):
 
 1. **See free times as a client:** `GET /api/v1/salons/{salonId}/free-slots` with `salonId` **1** (the Demo Salon), `serviceId` **1**, and tomorrow's date. The Demo Salon has two staff (`GET /api/v1/salons/1/staff`): Sipho works Monday to Saturday with lunch at 13:00, Lindiwe Tuesday to Saturday from 12:00. Add `staffId` to see one person's times.
 2. **Book one, without an account:** `POST /api/v1/salons/1/bookings` with one of those times. After 12:00, book the same time twice: the second booking goes to the other staff member. A third gets `409 Slot unavailable`.
@@ -311,6 +313,20 @@ Clients get a reminder **the evening before** their appointment, to cut no-shows
 - **Free-plan friendly:** the job queries the database only 4 times a day, so Neon can sleep.
 - **Tests:** [`ReminderJobIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/reminder/ReminderJobIntegrationTest.java) runs the job against real PostgreSQL. It checks the message text, that cancelled and later bookings are skipped, that a second run sends nothing, and that a failed send is retried.
 
+### Booking page for clients
+
+Clients book on a small web page served by the app itself: `/salons/{salonId}/book`.
+
+1. Pick a service, a day and, if the salon has several staff, who to book with. The free times appear as buttons.
+2. Tap a time, then enter a name and phone number.
+3. Land on your own booking page ("You're booked!"), the same page the reminder's cancel link opens.
+
+- **Same rules as the API:** the page calls the same `BookingService`, so double-booking protection, staff hours, breaks and time off all apply.
+- **Plain HTML forms, no JavaScript:** works on any phone. Choices are a `GET` form, so a chosen day can be shared as a link; booking is a `POST`, then a redirect (Post/Redirect/Get).
+- **Mistakes are shown on the page:** a missing name, a wrong phone number, or "someone just took that time" with a link back to the times. An unknown salon gets a "not found" page instead of a JSON error.
+- **Escaped output:** Thymeleaf shows salon and client names as text, so a name like `<script>` can't run.
+- **Tests:** [`ClientBookingPageIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/booking/ClientBookingPageIntegrationTest.java) covers the whole flow, validation errors, a slot taken first, the staff choice, escaping and "not found".
+
 ### Cancelling from the link
 
 A client who can't come taps the link in their reminder, sees their appointment and presses **Cancel my booking**. The slot is free again straight away, so the salon gets a chance to fill it instead of losing it to a no-show ([ADR-0010](docs/adr/0010-signed-cancel-links-for-clients.md)).
@@ -475,6 +491,7 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] Clients cancel their own booking from a signed link in the reminder
 - [x] No-show rate over a date range for owners, to measure whether reminders work
 - [x] WhatsApp delivery through Meta's Cloud API (built and tested; switched off until a Meta account is connected)
+- [x] A mobile booking page for clients, so nobody needs Swagger UI to book
 - [ ] Salons send reminders from their own WhatsApp number, connected through Meta's Embedded Signup ([ADR-0015](docs/adr/0015-one-platform-whatsapp-number-for-now.md))
 - [x] Staff members with their own working hours; clients can choose who to book with
 - [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings
