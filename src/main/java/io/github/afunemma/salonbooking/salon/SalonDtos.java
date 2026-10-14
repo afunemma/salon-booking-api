@@ -124,7 +124,7 @@ public final class SalonDtos {
 		}
 	}
 
-	public record CreateServiceRequest(@NotBlank @Size(max = 255) String name,
+	public record ServiceRequest(@NotBlank @Size(max = 255) String name,
 			@NotNull @Positive @Max(value = 720, message = "must be at most 12 hours") Integer durationMinutes,
 			@PositiveOrZero @Nullable Integer priceFromCents, @PositiveOrZero @Nullable Integer priceToCents) {
 

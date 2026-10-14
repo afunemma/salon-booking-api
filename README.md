@@ -227,6 +227,7 @@ Clients book **without an account**. Salon owners register, log in, and send the
 | `GET` | `/api/v1/salons` | 🔒 Owner | List your salons |
 | `GET` | `/api/v1/salons/{salonId}` | Anyone | Get a salon |
 | `POST` | `/api/v1/salons/{salonId}/services` | 🔒 Owner | Add a service, e.g. a 35-minute haircut at R50–R100 |
+| `PUT` | `/api/v1/salons/{salonId}/services/{serviceId}` | 🔒 Owner | Change a service's name, length or price (in cents: R75.50 = `7550`). Existing bookings keep their times |
 | `GET` | `/api/v1/salons/{salonId}/services` | Anyone | List a salon's services |
 | `POST` | `/api/v1/salons/{salonId}/staff` | 🔒 Owner | Add a staff member with their own hours, working days and break |
 | `GET` | `/api/v1/salons/{salonId}/staff` | Anyone | List a salon's staff members |

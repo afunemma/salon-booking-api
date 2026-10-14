@@ -25,7 +25,7 @@ import io.github.afunemma.salonbooking.account.AppUser;
 import io.github.afunemma.salonbooking.account.AppUserRepository;
 import io.github.afunemma.salonbooking.booking.BookingDtos.CreateBookingRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
-import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
+import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceRequest;
 import io.github.afunemma.salonbooking.salon.SalonService;
 
 /**
@@ -59,8 +59,7 @@ class ConcurrentBookingTest {
 		long salonId = salonService
 			.createSalon(new CreateSalonRequest("Race Cuts", LocalTime.of(9, 0), LocalTime.of(20, 0)), ownerId)
 			.id();
-		long haircutId = salonService.addService(salonId, ownerId, new CreateServiceRequest("Haircut", 35, null, null))
-			.id();
+		long haircutId = salonService.addService(salonId, ownerId, new ServiceRequest("Haircut", 35, null, null)).id();
 
 		CountDownLatch startTogether = new CountDownLatch(1);
 		List<Future<Boolean>> results = new ArrayList<>();

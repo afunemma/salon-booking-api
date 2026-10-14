@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import io.github.afunemma.salonbooking.common.NotFoundException;
 import io.github.afunemma.salonbooking.salon.ActiveBookings.BookedTime;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
-import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
+import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.StaffRequest;
@@ -76,12 +76,27 @@ public class SalonService {
 	}
 
 	@Transactional
-	public ServiceResponse addService(Long salonId, Long userId, CreateServiceRequest request) {
+	public ServiceResponse addService(Long salonId, Long userId, ServiceRequest request) {
 		Salon salon = findOwnedSalon(salonId, userId);
 		ServiceOffering service = new ServiceOffering(salon, request.name(),
 				Duration.ofMinutes(request.durationMinutes()), request.priceFromCents(), request.priceToCents());
 		services.save(service);
 		log.info("Service added: id={} salon={} duration={}min", service.getId(), salonId,
+				service.getDuration().toMinutes());
+		return ServiceResponse.from(service);
+	}
+
+	/**
+	 * Changes a service's name, length or price (owner only). Existing bookings keep the
+	 * times they were booked with, so changing the length can't create overlaps.
+	 */
+	@Transactional
+	public ServiceResponse updateService(Long salonId, Long serviceId, Long userId, ServiceRequest request) {
+		findOwnedSalon(salonId, userId);
+		ServiceOffering service = findService(salonId, serviceId);
+		service.update(request.name(), Duration.ofMinutes(request.durationMinutes()), request.priceFromCents(),
+				request.priceToCents());
+		log.info("Service updated: id={} salon={} duration={}min", serviceId, salonId,
 				service.getDuration().toMinutes());
 		return ServiceResponse.from(service);
 	}
