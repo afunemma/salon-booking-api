@@ -20,3 +20,4 @@ New decisions get the next number. If a decision is later replaced, its status b
 | [0012](0012-weekly-days-off-and-breaks.md) | Weekly days off and daily breaks, without stranding bookings | Accepted |
 | [0013](0013-dated-time-off.md) | Dated time off for staff leave and salon closures | Accepted |
 | [0014](0014-whatsapp-reminders-through-meta-cloud-api.md) | Deliver reminders by WhatsApp through Meta's Cloud API, switched off by default | Accepted |
+| [0015](0015-one-platform-whatsapp-number-for-now.md) | Send reminders from one platform WhatsApp number for now, not each salon's own | Accepted |
