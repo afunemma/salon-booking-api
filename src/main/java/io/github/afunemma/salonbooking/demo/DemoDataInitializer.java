@@ -19,7 +19,7 @@ import io.github.afunemma.salonbooking.account.AppUserRepository;
 import io.github.afunemma.salonbooking.account.AuthDtos.RegisterRequest;
 import io.github.afunemma.salonbooking.account.AuthService;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
-import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
+import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.StaffRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.StaffResponse;
@@ -68,10 +68,10 @@ class DemoDataInitializer implements ApplicationRunner {
 		Long ownerId = authService.register(new RegisterRequest(DEMO_OWNER_EMAIL, randomPassword())).id();
 		SalonResponse salon = salonService
 			.createSalon(new CreateSalonRequest("Demo Salon", LocalTime.of(9, 0), LocalTime.of(20, 0)), ownerId);
-		salonService.addService(salon.id(), ownerId, new CreateServiceRequest("Haircut", 35, 5000, 10000));
-		salonService.addService(salon.id(), ownerId, new CreateServiceRequest("Beard trim", 15, 3000, 5000));
-		salonService.addService(salon.id(), ownerId, new CreateServiceRequest("Box braids", 300, 45000, 80000));
-		salonService.addService(salon.id(), ownerId, new CreateServiceRequest("Manicure", 60, 20000, 20000));
+		salonService.addService(salon.id(), ownerId, new ServiceRequest("Haircut", 35, 5000, 10000));
+		salonService.addService(salon.id(), ownerId, new ServiceRequest("Beard trim", 15, 3000, 5000));
+		salonService.addService(salon.id(), ownerId, new ServiceRequest("Box braids", 300, 45000, 80000));
+		salonService.addService(salon.id(), ownerId, new ServiceRequest("Manicure", 60, 20000, 20000));
 		log.info("Demo data created: salon={}", salon.id());
 		return ownerId;
 	}

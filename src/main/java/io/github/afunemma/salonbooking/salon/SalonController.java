@@ -18,7 +18,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import io.github.afunemma.salonbooking.common.OpenApiConfig;
 import io.github.afunemma.salonbooking.common.TokenService;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
-import io.github.afunemma.salonbooking.salon.SalonDtos.CreateServiceRequest;
+import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.StaffRequest;
@@ -64,10 +64,19 @@ class SalonController {
 	@PostMapping("/{salonId}/services")
 	@Operation(summary = "Add a service, e.g. a 35-minute haircut (owner only)")
 	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
-	ResponseEntity<ServiceResponse> addService(@PathVariable Long salonId,
-			@Valid @RequestBody CreateServiceRequest request, @AuthenticationPrincipal Jwt token) {
+	ResponseEntity<ServiceResponse> addService(@PathVariable Long salonId, @Valid @RequestBody ServiceRequest request,
+			@AuthenticationPrincipal Jwt token) {
 		ServiceResponse service = salonService.addService(salonId, TokenService.userIdOf(token), request);
 		return ResponseEntity.created(locationOf(service.id())).body(service);
+	}
+
+	@PutMapping("/{salonId}/services/{serviceId}")
+	@Operation(summary = "Change a service's name, length or price (owner only)",
+			description = "Prices are in cents: R75.50 = 7550. Existing bookings keep their times; new bookings use the new length.")
+	@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
+	ServiceResponse updateService(@PathVariable Long salonId, @PathVariable Long serviceId,
+			@Valid @RequestBody ServiceRequest request, @AuthenticationPrincipal Jwt token) {
+		return salonService.updateService(salonId, serviceId, TokenService.userIdOf(token), request);
 	}
 
 	@GetMapping("/{salonId}/services")

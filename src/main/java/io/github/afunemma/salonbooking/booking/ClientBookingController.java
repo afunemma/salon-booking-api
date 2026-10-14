@@ -156,12 +156,17 @@ class ClientBookingController {
 			Integer from = service.priceFromCents();
 			Integer to = service.priceToCents();
 			if (from != null && to != null && !from.equals(to)) {
-				label.append(" · R").append(from / 100).append("–R").append(to / 100);
+				label.append(" · ").append(rand(from)).append("–").append(rand(to));
 			}
 			else if (from != null) {
-				label.append(" · R").append(from / 100);
+				label.append(" · ").append(rand(from));
 			}
 			return new ServiceOption(service.id(), label.toString());
+		}
+
+		/** R50 for 5000 cents, R75.50 for 7550 cents. */
+		static String rand(int cents) {
+			return cents % 100 == 0 ? "R" + cents / 100 : "R%d.%02d".formatted(cents / 100, cents % 100);
 		}
 	}
 

@@ -52,16 +52,32 @@ public class ServiceOffering {
 	public ServiceOffering(Salon salon, String name, Duration duration, @Nullable Integer priceFromCents,
 			@Nullable Integer priceToCents) {
 		this.salon = Objects.requireNonNull(salon, "salon must not be null");
+		check(duration, priceFromCents, priceToCents);
 		this.name = Objects.requireNonNull(name, "name must not be null");
+		this.durationMinutes = Math.toIntExact(duration.toMinutes());
+		this.priceFromCents = priceFromCents;
+		this.priceToCents = priceToCents;
+	}
+
+	/**
+	 * Changes the name, length or price. Existing bookings keep the times they were made
+	 * with; only new bookings use the new length.
+	 */
+	void update(String name, Duration duration, @Nullable Integer priceFromCents, @Nullable Integer priceToCents) {
+		check(duration, priceFromCents, priceToCents);
+		this.name = Objects.requireNonNull(name, "name must not be null");
+		this.durationMinutes = Math.toIntExact(duration.toMinutes());
+		this.priceFromCents = priceFromCents;
+		this.priceToCents = priceToCents;
+	}
+
+	private static void check(Duration duration, @Nullable Integer priceFromCents, @Nullable Integer priceToCents) {
 		if (duration.toMinutes() < 1) {
 			throw new IllegalArgumentException("duration must be at least one minute");
 		}
 		if (priceFromCents != null && priceToCents != null && priceToCents < priceFromCents) {
 			throw new IllegalArgumentException("priceToCents must not be lower than priceFromCents");
 		}
-		this.durationMinutes = Math.toIntExact(duration.toMinutes());
-		this.priceFromCents = priceFromCents;
-		this.priceToCents = priceToCents;
 	}
 
 	/** Only available once saved; the database assigns the id. */
