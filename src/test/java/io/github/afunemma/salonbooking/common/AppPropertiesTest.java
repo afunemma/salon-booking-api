@@ -18,7 +18,8 @@ class AppPropertiesTest {
 
 	private static final String[] VALID = { "app.time-zone=Africa/Johannesburg",
 			"app.public-base-url=https://salon.example.com", "app.booking.slot-step=15m",
-			"app.booking.max-upcoming-per-phone=3", "app.reminders.cron=0 0 18-21 * * *",
+			"app.booking.max-upcoming-per-phone=3", "app.booking.bookings-per-ip.attempts=20",
+			"app.booking.bookings-per-ip.window=1h", "app.reminders.cron=0 0 18-21 * * *",
 			"app.reminders.whatsapp.api-url=https://graph.facebook.com/v23.0",
 			"app.reminders.whatsapp.template-name=appointment_reminder", "app.reminders.whatsapp.template-language=en",
 			"app.reminders.whatsapp.default-country-code=27", "app.security.token-lifetime=1h",

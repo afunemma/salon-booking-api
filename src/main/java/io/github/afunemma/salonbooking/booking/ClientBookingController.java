@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -24,11 +25,14 @@ import io.github.afunemma.salonbooking.booking.BookingDtos.CreateBookingRequest;
 import io.github.afunemma.salonbooking.common.ConflictException;
 import io.github.afunemma.salonbooking.common.BusinessRuleException;
 import io.github.afunemma.salonbooking.common.NotFoundException;
+import io.github.afunemma.salonbooking.common.TooManyRequestsException;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.StaffResponse;
 import io.github.afunemma.salonbooking.salon.SalonService;
 import io.swagger.v3.oas.annotations.Hidden;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 /**
@@ -103,15 +107,21 @@ class ClientBookingController {
 	 */
 	@PostMapping("/salons/{salonId}/book")
 	String book(@PathVariable Long salonId, @Valid @ModelAttribute("form") CreateBookingRequest form,
-			BindingResult errors, Model model) {
+			BindingResult errors, Model model, HttpServletRequest request, HttpServletResponse response) {
 		if (errors.hasErrors()) {
 			return details(salonId, form.serviceId(), form.staffId(), model);
 		}
 		try {
-			BookingResponse booking = bookingService.book(salonId, form);
+			BookingResponse booking = bookingService.book(salonId, form, request.getRemoteAddr());
 			return "redirect:" + booking.cancelUrl() + "&booked=true";
 		}
 		catch (ConflictException | BusinessRuleException ex) {
+			model.addAttribute("bookingError", ex.getMessage());
+			return details(salonId, form.serviceId(), form.staffId(), model);
+		}
+		catch (TooManyRequestsException ex) {
+			response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+			response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfter().toSeconds()));
 			model.addAttribute("bookingError", ex.getMessage());
 			return details(salonId, form.serviceId(), form.staffId(), model);
 		}

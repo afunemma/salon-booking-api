@@ -83,7 +83,8 @@ class WhatsAppReminderSenderTest {
 
 	static AppProperties properties() {
 		return new AppProperties(ZoneId.of("Africa/Johannesburg"), URI.create("https://salon.example.com"),
-				new AppProperties.Booking(Duration.ofMinutes(15), 3),
+				new AppProperties.Booking(Duration.ofMinutes(15), 3,
+						new AppProperties.RateLimit(20, Duration.ofHours(1))),
 				new AppProperties.Reminders("-",
 						new AppProperties.WhatsApp(true, URI.create("https://graph.example.test/v23.0"), "1234567890",
 								"test-token", "appointment_reminder", "en", "27")),

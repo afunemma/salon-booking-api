@@ -57,7 +57,9 @@ class BookingServiceTest {
 	void setUp() {
 		Clock clock = Clock.fixed(FixedClockConfiguration.NOW.toInstant(), FixedClockConfiguration.NOW.getZone());
 		AppProperties properties = new AppProperties(ZoneId.of("Africa/Johannesburg"),
-				URI.create("http://localhost:8080"), new AppProperties.Booking(Duration.ofMinutes(15), 3),
+				URI.create("http://localhost:8080"),
+				new AppProperties.Booking(Duration.ofMinutes(15), 3,
+						new AppProperties.RateLimit(20, Duration.ofHours(1))),
 				new AppProperties.Reminders("-", AppProperties.WhatsApp.DISABLED),
 				new AppProperties.Security(null, null, Duration.ofHours(1),
 						new AppProperties.RateLimit(20, Duration.ofMinutes(1)),
@@ -85,7 +87,8 @@ class BookingServiceTest {
 	void overlapConstraintBecomesSlotUnavailable() {
 		when(bookings.saveAndFlush(any())).thenThrow(databaseError("23P01", "booking_no_overlap"));
 
-		assertThatThrownBy(() -> bookingService.book(1L, request)).isInstanceOf(SlotUnavailableException.class)
+		assertThatThrownBy(() -> bookingService.book(1L, request, "127.0.0.1"))
+			.isInstanceOf(SlotUnavailableException.class)
 			.hasMessageContaining("just booked by someone else");
 		assertThat(meters.get("salon.bookings.rejected").tag("reason", "slot_taken_concurrently").counter().count())
 			.isEqualTo(1);
@@ -96,7 +99,8 @@ class BookingServiceTest {
 	void otherConstraintIsRethrown() {
 		when(bookings.saveAndFlush(any())).thenThrow(databaseError("23514", "booking_starts_before_ends"));
 
-		assertThatThrownBy(() -> bookingService.book(1L, request)).isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> bookingService.book(1L, request, "127.0.0.1"))
+			.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	/** Builds the exception chain Spring produces when PostgreSQL rejects an insert. */

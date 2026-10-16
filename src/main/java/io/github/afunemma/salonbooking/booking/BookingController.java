@@ -26,6 +26,7 @@ import io.github.afunemma.salonbooking.common.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -49,9 +50,10 @@ class BookingController {
 
 	@PostMapping("/bookings")
 	@Operation(summary = "Book a free slot",
-			description = "Without staffId, the first staff member free at that time is booked. Returns 409 Conflict if the slot is no longer free.")
-	ResponseEntity<BookingResponse> book(@PathVariable Long salonId, @Valid @RequestBody CreateBookingRequest request) {
-		BookingResponse booking = bookingService.book(salonId, request);
+			description = "Without staffId, the first staff member free at that time is booked. Returns 409 Conflict if the slot is no longer free, and 429 Too Many Requests after too many attempts from one IP address.")
+	ResponseEntity<BookingResponse> book(@PathVariable Long salonId, @Valid @RequestBody CreateBookingRequest request,
+			HttpServletRequest httpRequest) {
+		BookingResponse booking = bookingService.book(salonId, request, httpRequest.getRemoteAddr());
 		URI location = ServletUriComponentsBuilder.fromCurrentRequest()
 			.path("/{id}")
 			.buildAndExpand(booking.id())

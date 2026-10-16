@@ -32,7 +32,9 @@ import io.github.afunemma.salonbooking.booking.BookingDtos.CreateBookingRequest;
 import io.github.afunemma.salonbooking.booking.BookingDtos.FreeSlotsResponse;
 import io.github.afunemma.salonbooking.booking.BookingDtos.NoShowStatsResponse;
 import io.github.afunemma.salonbooking.common.AppProperties;
+import io.github.afunemma.salonbooking.common.KeyedRateLimiter;
 import io.github.afunemma.salonbooking.common.NotFoundException;
+import io.github.afunemma.salonbooking.common.TooManyRequestsException;
 import io.github.afunemma.salonbooking.salon.SalonService;
 import io.github.afunemma.salonbooking.salon.ServiceOffering;
 import io.github.afunemma.salonbooking.salon.StaffMember;
@@ -71,6 +73,8 @@ public class BookingService {
 
 	private final int maxUpcomingPerPhone;
 
+	private final KeyedRateLimiter attemptsPerIp;
+
 	private final MeterRegistry meters;
 
 	private final Counter bookingsMade;
@@ -92,6 +96,8 @@ public class BookingService {
 		this.cancelLinks = cancelLinks;
 		this.slotStep = properties.booking().slotStep();
 		this.maxUpcomingPerPhone = properties.booking().maxUpcomingPerPhone();
+		this.attemptsPerIp = new KeyedRateLimiter(properties.booking().bookingsPerIp(),
+				"Too many bookings from your network. Please try again later.");
 		this.meters = meters;
 		this.bookingsMade = Counter.builder("salon.bookings.made")
 			.description("Bookings made by clients")
@@ -121,9 +127,18 @@ public class BookingService {
 	 * <li>The database's {@code booking_no_overlap} constraint rejects overlaps even if
 	 * some other code path forgets the lock.</li>
 	 * </ol>
+	 * Abuse limits: at most {@code app.booking.bookings-per-ip} attempts per IP address,
+	 * and a few upcoming bookings per phone number.
 	 */
 	@Transactional
-	public BookingResponse book(Long salonId, CreateBookingRequest request) {
+	public BookingResponse book(Long salonId, CreateBookingRequest request, String clientIp) {
+		try {
+			attemptsPerIp.consume(clientIp);
+		}
+		catch (TooManyRequestsException ex) {
+			countRejected("rate_limited_ip");
+			throw ex;
+		}
 		salonService.lockSalon(salonId);
 		ServiceOffering service = salonService.findService(salonId, request.serviceId());
 		if (request.date().isBefore(LocalDate.now(clock))) {

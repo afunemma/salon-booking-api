@@ -32,8 +32,11 @@ public record AppProperties(@NotNull ZoneId timeZone, @NotNull URI publicBaseUrl
 	 * @param slotStep gap between the start times offered to clients
 	 * @param maxUpcomingPerPhone how many upcoming bookings one phone number may hold at
 	 * a salon; stops one person filling a diary
+	 * @param bookingsPerIp booking attempts allowed from one IP address; generous,
+	 * because many mobile users can share one IP
 	 */
-	public record Booking(@NotNull @DurationMin(minutes = 1) Duration slotStep, @Min(1) int maxUpcomingPerPhone) {
+	public record Booking(@NotNull @DurationMin(minutes = 1) Duration slotStep, @Min(1) int maxUpcomingPerPhone,
+			@Valid @NotNull RateLimit bookingsPerIp) {
 	}
 
 	/**
