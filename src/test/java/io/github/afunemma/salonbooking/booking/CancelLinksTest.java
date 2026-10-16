@@ -67,7 +67,7 @@ class CancelLinksTest {
 
 	private static CancelLinks links(String baseUrl, @Nullable String secret) {
 		return new CancelLinks(new AppProperties(ZoneId.of("Africa/Johannesburg"), URI.create(baseUrl),
-				new AppProperties.Booking(Duration.ofMinutes(15)),
+				new AppProperties.Booking(Duration.ofMinutes(15), 3),
 				new AppProperties.Reminders("-", AppProperties.WhatsApp.DISABLED),
 				new AppProperties.Security(null, secret, Duration.ofHours(1),
 						new AppProperties.RateLimit(20, Duration.ofMinutes(1)),

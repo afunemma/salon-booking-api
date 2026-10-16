@@ -28,7 +28,12 @@ import jakarta.validation.constraints.Size;
 public record AppProperties(@NotNull ZoneId timeZone, @NotNull URI publicBaseUrl, @Valid @NotNull Booking booking,
 		@Valid @NotNull Reminders reminders, @Valid @NotNull Security security) {
 
-	public record Booking(@NotNull @DurationMin(minutes = 1) Duration slotStep) {
+	/**
+	 * @param slotStep gap between the start times offered to clients
+	 * @param maxUpcomingPerPhone how many upcoming bookings one phone number may hold at
+	 * a salon; stops one person filling a diary
+	 */
+	public record Booking(@NotNull @DurationMin(minutes = 1) Duration slotStep, @Min(1) int maxUpcomingPerPhone) {
 	}
 
 	/**

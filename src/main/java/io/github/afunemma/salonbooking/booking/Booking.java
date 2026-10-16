@@ -55,6 +55,10 @@ public class Booking {
 	@Column(nullable = false)
 	private String clientPhone;
 
+	/** See {@link #phoneKey(String)}. */
+	@Column(nullable = false)
+	private String clientPhoneKey;
+
 	@Column(nullable = false)
 	private LocalDate bookingDate;
 
@@ -84,6 +88,7 @@ public class Booking {
 		}
 		this.clientName = Objects.requireNonNull(clientName, "clientName must not be null");
 		this.clientPhone = Objects.requireNonNull(clientPhone, "clientPhone must not be null");
+		this.clientPhoneKey = phoneKey(clientPhone);
 		this.bookingDate = Objects.requireNonNull(bookingDate, "bookingDate must not be null");
 		this.startTime = Objects.requireNonNull(startTime, "startTime must not be null");
 		this.endTime = startTime.plus(service.getDuration());
@@ -93,6 +98,17 @@ public class Booking {
 
 	private static boolean sameSalon(Salon a, Salon b) {
 		return a == b || a.getId().equals(b.getId());
+	}
+
+	/**
+	 * The phone number reduced to its last 9 digits, so different ways of typing it
+	 * compare equal: "082 123 4567", "0821234567" and "+27 82 123 4567" all become
+	 * "821234567". Used to limit bookings per client; the number as typed is kept for
+	 * display.
+	 */
+	public static String phoneKey(String phone) {
+		String digits = phone.replaceAll("[^0-9]", "");
+		return digits.substring(Math.max(0, digits.length() - 9));
 	}
 
 	public TimeRange getTimeRange() {

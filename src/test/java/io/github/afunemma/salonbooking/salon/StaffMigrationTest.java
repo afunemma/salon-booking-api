@@ -48,8 +48,8 @@ class StaffMigrationTest {
 		// The overlap rule still holds after the upgrade, now per staff member.
 		assertThatThrownBy(() -> jdbc.update("""
 				INSERT INTO booking (salon_id, service_offering_id, staff_member_id, client_name, client_phone,
-				                     booking_date, start_time, end_time, status, created_at)
-				SELECT salon_id, service_offering_id, staff_member_id, 'Sipho', '0820000002',
+				                     client_phone_key, booking_date, start_time, end_time, status, created_at)
+				SELECT salon_id, service_offering_id, staff_member_id, 'Sipho', '0820000002', '820000002',
 				       booking_date, '10:15', '10:50', 'BOOKED', now()
 				FROM booking WHERE salon_id = ?
 				""", salonId)).isInstanceOf(DataIntegrityViolationException.class)

@@ -33,6 +33,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 	List<Booking> findBySalonIdAndStatusAndBookingDateBetweenOrderByBookingDateAscStartTimeAsc(Long salonId,
 			BookingStatus status, LocalDate first, LocalDate last);
 
+	long countBySalonIdAndClientPhoneKeyAndStatusAndBookingDateGreaterThanEqual(Long salonId, String clientPhoneKey,
+			BookingStatus status, LocalDate from);
+
 	long countBySalonIdAndStatusAndBookingDateBetween(Long salonId, BookingStatus status, LocalDate from, LocalDate to);
 
 	/** One row of {@link #countByStatus}. */

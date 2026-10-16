@@ -69,6 +69,8 @@ public class BookingService {
 
 	private final Duration slotStep;
 
+	private final int maxUpcomingPerPhone;
+
 	private final MeterRegistry meters;
 
 	private final Counter bookingsMade;
@@ -89,6 +91,7 @@ public class BookingService {
 		this.clock = clock;
 		this.cancelLinks = cancelLinks;
 		this.slotStep = properties.booking().slotStep();
+		this.maxUpcomingPerPhone = properties.booking().maxUpcomingPerPhone();
 		this.meters = meters;
 		this.bookingsMade = Counter.builder("salon.bookings.made")
 			.description("Bookings made by clients")
@@ -127,6 +130,7 @@ public class BookingService {
 			countRejected("date_in_past");
 			throw new BookingNotAllowedException("Bookings can't be made for a date in the past");
 		}
+		checkUpcomingLimit(salonId, request.clientPhone());
 		// The first staff member (in the order they were added) who is free then.
 		StaffMember staff = freeTimesByStaff(service, staffToConsider(salonId, request.staffId()), request.date())
 			.entrySet()
@@ -279,6 +283,21 @@ public class BookingService {
 			case BOOKED -> booking.getBookingDate().atTime(booking.getStartTime()).isAfter(LocalDateTime.now(clock))
 					? ClientBookingView.State.CAN_CANCEL : ClientBookingView.State.TOO_LATE;
 		};
+	}
+
+	/**
+	 * Stops one phone number holding more than a few upcoming bookings at a salon, so
+	 * nobody can fill a diary with fake bookings under one number. Runs after the salon
+	 * lock, so two requests at once can't both slip under the limit.
+	 */
+	private void checkUpcomingLimit(Long salonId, String clientPhone) {
+		long upcoming = bookings.countBySalonIdAndClientPhoneKeyAndStatusAndBookingDateGreaterThanEqual(salonId,
+				Booking.phoneKey(clientPhone), BookingStatus.BOOKED, LocalDate.now(clock));
+		if (upcoming >= maxUpcomingPerPhone) {
+			countRejected("too_many_for_phone");
+			throw new TooManyBookingsException("This phone number already has " + upcoming
+					+ " upcoming booking(s) at this salon, the most allowed. Cancel one first, or contact the salon.");
+		}
 	}
 
 	private void countRejected(String reason) {
