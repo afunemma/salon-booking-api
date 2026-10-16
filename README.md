@@ -326,6 +326,7 @@ Clients book on a small web page served by the app itself: `/salons/{salonId}/bo
 - **Plain HTML forms, no JavaScript:** works on any phone. Choices are a `GET` form, so a chosen day can be shared as a link; booking is a `POST`, then a redirect (Post/Redirect/Get).
 - **Mistakes are shown on the page:** a missing name, a wrong phone number, or "someone just took that time" with a link back to the times. An unknown salon gets a "not found" page instead of a JSON error.
 - **Escaped output:** Thymeleaf shows salon and client names as text, so a name like `<script>` can't run.
+- **No filling the diary:** one phone number can hold at most 3 upcoming bookings per salon, however it's typed (`082 123 4567`, `+27 82 123 4567`). A fourth gets `409 Too many bookings`, explained on the form ([ADR-0016](docs/adr/0016-limit-upcoming-bookings-per-phone-number.md)).
 - **Tests:** [`ClientBookingPageIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/booking/ClientBookingPageIntegrationTest.java) covers the whole flow, validation errors, a slot taken first, the staff choice, escaping and "not found".
 
 ### Cancelling from the link
@@ -426,7 +427,7 @@ Business metrics are exported in Prometheus format on an **internal port (9090)*
 | Metric | Why it matters |
 |---|---|
 | `salon_bookings_made_total` | Booking volume |
-| `salon_bookings_rejected_total{reason}` | Clients who couldn't get the slot they wanted (`slot_unavailable`, `slot_taken_concurrently`, `date_in_past`) |
+| `salon_bookings_rejected_total{reason}` | Clients who couldn't get the slot they wanted (`slot_unavailable`, `slot_taken_concurrently`, `date_in_past`), and numbers that hit the booking limit (`too_many_for_phone`): a spike may mean someone is trying to fill a diary |
 | `salon_bookings_status_changed_total{status}` | Cancellations, completions and **no-shows**, the problem salons said costs them the most |
 | `salon_reminders_total{result}` | Reminders `sent` or `failed`. Repeated failures mean the messaging channel is down |
 | `salon_auth_logins_total{result}` | `success`, `failure`, `rate_limited`. A spike in failures or rate limits is a sign of password guessing |
@@ -493,6 +494,8 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] No-show rate over a date range for owners, to measure whether reminders work
 - [x] WhatsApp delivery through Meta's Cloud API (built and tested; switched off until a Meta account is connected)
 - [x] A mobile booking page for clients, so nobody needs Swagger UI to book
+- [x] At most 3 upcoming bookings per phone number per salon
+- [ ] Limit bookings per IP address, against invented phone numbers
 - [ ] Salons send reminders from their own WhatsApp number, connected through Meta's Embedded Signup ([ADR-0015](docs/adr/0015-one-platform-whatsapp-number-for-now.md))
 - [x] Staff members with their own working hours; clients can choose who to book with
 - [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings

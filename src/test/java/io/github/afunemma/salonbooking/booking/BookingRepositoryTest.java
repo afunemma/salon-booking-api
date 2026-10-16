@@ -160,8 +160,8 @@ class BookingRepositoryTest {
 
 		assertThatThrownBy(() -> jdbc.update("""
 				INSERT INTO booking (salon_id, service_offering_id, staff_member_id, client_name, client_phone,
-				                     booking_date, start_time, end_time, status, created_at)
-				VALUES (?, ?, ?, 'Thabo', '0820000001', '2026-10-05', '10:00', '10:35', 'BOOKED', now())
+				                     client_phone_key, booking_date, start_time, end_time, status, created_at)
+				VALUES (?, ?, ?, 'Thabo', '0820000001', '820000001', '2026-10-05', '10:00', '10:35', 'BOOKED', now())
 				""", haircut.getSalon().getId(), haircut.getId(), elsewhere.getId()))
 			.isInstanceOf(DataIntegrityViolationException.class)
 			.hasMessageContaining("booking_staff_in_same_salon");

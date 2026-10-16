@@ -56,4 +56,13 @@ class BookingTest {
 			.isInstanceOf(IllegalArgumentException.class);
 	}
 
+	@Test
+	void phoneKeyIgnoresHowTheNumberIsWritten() {
+		assertThat(Booking.phoneKey("082 123 4567")).isEqualTo("821234567");
+		assertThat(Booking.phoneKey("0821234567")).isEqualTo("821234567");
+		assertThat(Booking.phoneKey("+27 82 123 4567")).isEqualTo("821234567");
+		assertThat(Booking.phoneKey("+27821234567")).isEqualTo("821234567");
+		assertThat(Booking.phoneKey("1234567")).as("shorter than 9 digits").isEqualTo("1234567");
+	}
+
 }
