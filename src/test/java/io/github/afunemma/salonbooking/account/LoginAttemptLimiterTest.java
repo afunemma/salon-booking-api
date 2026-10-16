@@ -20,7 +20,8 @@ class LoginAttemptLimiterTest {
 	/** 3 attempts per IP per hour; 2 failures per email per hour. */
 	private final LoginAttemptLimiter limiter = new LoginAttemptLimiter(
 			new AppProperties(ZoneId.of("Africa/Johannesburg"), URI.create("http://localhost:8080"),
-					new AppProperties.Booking(Duration.ofMinutes(15), 3),
+					new AppProperties.Booking(Duration.ofMinutes(15), 3,
+							new AppProperties.RateLimit(20, Duration.ofHours(1))),
 					new AppProperties.Reminders("-", AppProperties.WhatsApp.DISABLED),
 					new AppProperties.Security(null, null, Duration.ofHours(1), new RateLimit(3, Duration.ofHours(1)),
 							new RateLimit(2, Duration.ofHours(1)))));

@@ -73,7 +73,7 @@ class ConcurrentBookingTest {
 				results.add(pool.submit(() -> {
 					startTogether.await();
 					try {
-						bookingService.book(salonId, request);
+						bookingService.book(salonId, request, "127.0.0.1");
 						return true;
 					}
 					catch (SlotUnavailableException ex) {
