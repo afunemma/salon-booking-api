@@ -2,13 +2,14 @@
 
 [![CI](https://github.com/afunemma/salon-booking-api/actions/workflows/ci.yml/badge.svg)](https://github.com/afunemma/salon-booking-api/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/afunemma/salon-booking-api/actions/workflows/codeql/badge.svg)](https://github.com/afunemma/salon-booking-api/security/code-scanning)
-[![Live demo](https://img.shields.io/badge/live%20demo-Swagger%20UI-85EA2D?logo=swagger&logoColor=black)](https://salon-booking-api-wguy.onrender.com/swagger-ui.html)
+[![Live demo](https://img.shields.io/badge/live%20demo-open-2ea44f)](https://salon-booking-api-wguy.onrender.com/)
+[![API docs](https://img.shields.io/badge/API-Swagger%20UI-85EA2D?logo=swagger&logoColor=black)](https://salon-booking-api-wguy.onrender.com/swagger-ui.html)
 
-A REST API that lets clients book appointments at salons (barbers, hair, braids, nails and beauty). It is built with Java and Spring Boot.
+A booking system for salons (barbers, hair, braids, nails and beauty): a REST API, plus mobile web pages for clients and salon owners. It is built with Java and Spring Boot.
 
 ## Try it live
 
-**👉 [https://salon-booking-api-wguy.onrender.com/swagger-ui.html](https://salon-booking-api-wguy.onrender.com/swagger-ui.html)**
+**👉 [salon-booking-api-wguy.onrender.com](https://salon-booking-api-wguy.onrender.com/)**: the landing page, with ways in for clients, salon owners and developers.
 
 > ⏳ The demo runs on a free server. An uptime monitor keeps it awake, so it normally responds in under a second. Right after a restart or a new deploy, give it **up to 3 minutes** to start.
 
@@ -90,6 +91,8 @@ Dependencies point one way only, enforced by [`ArchitectureTest`](src/test/java/
 ```mermaid
 flowchart LR
     reminder --> booking
+    home --> salon
+    demo -. "implements FeaturedSalon" .-> home
     owner --> booking
     owner --> account
     booking --> salon --> scheduling
@@ -529,6 +532,7 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] Owner pages: log in, create a salon, and manage the day's bookings
 - [x] Owner pages for services and prices, typed in rand
 - [x] Owner pages for staff, working days, breaks and time off
+- [x] A landing page at `/`, linking to the Demo Salon on the live demo
 - [ ] Salons send reminders from their own WhatsApp number, connected through Meta's Embedded Signup ([ADR-0015](docs/adr/0015-one-platform-whatsapp-number-for-now.md))
 - [x] Staff members with their own working hours; clients can choose who to book with
 - [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings
