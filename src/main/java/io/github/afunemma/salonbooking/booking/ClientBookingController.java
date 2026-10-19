@@ -26,6 +26,7 @@ import io.github.afunemma.salonbooking.common.ConflictException;
 import io.github.afunemma.salonbooking.common.BusinessRuleException;
 import io.github.afunemma.salonbooking.common.NotFoundException;
 import io.github.afunemma.salonbooking.common.TooManyRequestsException;
+import io.github.afunemma.salonbooking.salon.Prices;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
 import io.github.afunemma.salonbooking.salon.SalonDtos.StaffResponse;
@@ -160,23 +161,9 @@ class ClientBookingController {
 	record ServiceOption(Long id, String label) {
 
 		static ServiceOption from(ServiceResponse service) {
-			StringBuilder label = new StringBuilder(service.name()).append(" · ")
-				.append(service.durationMinutes())
-				.append(" min");
-			Integer from = service.priceFromCents();
-			Integer to = service.priceToCents();
-			if (from != null && to != null && !from.equals(to)) {
-				label.append(" · ").append(rand(from)).append("–").append(rand(to));
-			}
-			else if (from != null) {
-				label.append(" · ").append(rand(from));
-			}
-			return new ServiceOption(service.id(), label.toString());
-		}
-
-		/** R50 for 5000 cents, R75.50 for 7550 cents. */
-		static String rand(int cents) {
-			return cents % 100 == 0 ? "R" + cents / 100 : "R%d.%02d".formatted(cents / 100, cents % 100);
+			String label = service.name() + " · " + service.durationMinutes() + " min";
+			String price = Prices.range(service.priceFromCents(), service.priceToCents());
+			return new ServiceOption(service.id(), price != null ? label + " · " + price : label);
 		}
 	}
 

@@ -14,7 +14,7 @@ A REST API that lets clients book appointments at salons (barbers, hair, braids,
 
 **📱 Book like a client:** [salon-booking-api-wguy.onrender.com/salons/1/book](https://salon-booking-api-wguy.onrender.com/salons/1/book). Pick a service and a time, enter a name and phone number, and you land on your own booking page with a cancel button. Best on a phone.
 
-**🧑‍💼 Run a salon:** [/owner/register](https://salon-booking-api-wguy.onrender.com/owner/register). Create an owner account, log in, create a salon, then manage each day's bookings: Done, No-show or Cancel. Services can be added through the API for now.
+**🧑‍💼 Run a salon:** [/owner/register](https://salon-booking-api-wguy.onrender.com/owner/register). Create an owner account, log in, create a salon, add your services and prices, then manage each day's bookings: Done, No-show or Cancel.
 
 A 2-minute tour of the API in Swagger UI (click an endpoint → **Try it out** → **Execute**):
 
@@ -336,7 +336,9 @@ Clients book on a small web page served by the app itself: `/salons/{salonId}/bo
 
 ### Owner pages
 
-Owners log in at `/owner/login` and manage their salon from a phone: "My salons", a form to create one, and the **day view** with each booking's time, client (tap the number to call), service, staff member, and **Done / No-show / Cancel** buttons.
+Owners log in at `/owner/login` and manage their salon from a phone: "My salons", a form to create one, the **day view** with each booking's time, client (tap the number to call), service, staff member, and **Done / No-show / Cancel** buttons, and **Services & prices**.
+
+- **Prices in rand:** owners type `75.50`; it's stored as `7550` cents (ADR-0003) and shown everywhere as "R75.50" or "R50–R100" by one shared `Prices` class. `BigDecimal` keeps 75.50 exact (a `double` could store 75.4999…), and at most 2 decimals are accepted. A test makes sure a South African browser (`en-ZA`, which writes decimals with a comma) still gets `75.50` in the form, as HTML number fields require.
 
 - **A separate security set-up** ([ADR-0019](docs/adr/0019-session-login-for-owner-pages.md)): a web page can't send the API's `Authorization` header without JavaScript keeping the token where scripts can steal it. So `/owner/**` has its own Spring Security filter chain with a login form and a session cookie (HttpOnly, SameSite=Lax, Secure in production), **with CSRF protection on**. The API's chain stays stateless with JWT.
 - **The same login rules:** the form uses the same `AuthService.authenticate` as the API, with the same rate limits and the same answer for a wrong email or password.
@@ -522,7 +524,8 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] Limit booking attempts per IP address, against invented phone numbers
 - [x] Optimistic locking, so simultaneous changes to one booking can't overwrite each other
 - [x] Owner pages: log in, create a salon, and manage the day's bookings
-- [ ] Owner pages for services and prices, staff, and time off
+- [x] Owner pages for services and prices, typed in rand
+- [ ] Owner pages for staff and time off
 - [ ] Salons send reminders from their own WhatsApp number, connected through Meta's Embedded Signup ([ADR-0015](docs/adr/0015-one-platform-whatsapp-number-for-now.md))
 - [x] Staff members with their own working hours; clients can choose who to book with
 - [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings
