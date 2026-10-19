@@ -407,6 +407,14 @@ WHERE (status = 'BOOKED')
 
 I also tried the constraint alone. It stopped the double bookings, but under heavy contention PostgreSQL reported deadlocks between the waiting inserts, and clients got server errors. Taking the lock first keeps the requests in order and avoids the deadlocks. Locking per salon is fine at salon scale, where a salon handles a few bookings a minute, not thousands a second.
 
+### Changing an existing booking
+
+The owner might mark a booking done at the same moment the client cancels it. Both would read it as booked, and the later save would silently overwrite the earlier one (a **lost update**).
+
+Bookings have a `version` column with JPA's `@Version`, so every update only succeeds if nobody changed the booking since it was read. The second change gets `409 Changed at the same time` ("reload and try again"); on the client's cancel page it simply reloads ([ADR-0018](docs/adr/0018-optimistic-locking-for-booking-changes.md)).
+
+[`ConcurrentStatusChangeTest`](src/test/java/io/github/afunemma/salonbooking/booking/ConcurrentStatusChangeTest.java) forces the race with two threads and latches against PostgreSQL. It fails when `@Version` is removed.
+
 ## Security design
 
 Full reasoning: [ADR-0006](docs/adr/0006-stateless-jwt-auth-for-owners-only.md).
@@ -498,6 +506,7 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] A mobile booking page for clients, so nobody needs Swagger UI to book
 - [x] At most 3 upcoming bookings per phone number per salon
 - [x] Limit booking attempts per IP address, against invented phone numbers
+- [x] Optimistic locking, so simultaneous changes to one booking can't overwrite each other
 - [ ] Salons send reminders from their own WhatsApp number, connected through Meta's Embedded Signup ([ADR-0015](docs/adr/0015-one-platform-whatsapp-number-for-now.md))
 - [x] Staff members with their own working hours; clients can choose who to book with
 - [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings

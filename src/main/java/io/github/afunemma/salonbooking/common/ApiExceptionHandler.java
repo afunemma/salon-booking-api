@@ -6,6 +6,7 @@ import java.util.TreeMap;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -50,6 +51,18 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(ConflictException.class)
 	ProblemDetail handleConflict(ConflictException ex) {
 		return problem(HttpStatus.CONFLICT, ex.getTitle(), ex.getMessage());
+	}
+
+	/**
+	 * Two requests changed the same record at the same moment, and optimistic locking
+	 * ({@code @Version}) stopped the second one from overwriting the first. Retrying
+	 * after a reload is safe.
+	 */
+	@ExceptionHandler(OptimisticLockingFailureException.class)
+	ProblemDetail handleConcurrentChange(OptimisticLockingFailureException ex) {
+		log.warn("Concurrent change refused: {}", ex.getClass().getSimpleName());
+		return problem(HttpStatus.CONFLICT, "Changed at the same time",
+				"Someone else changed this at the same moment. Reload and try again.");
 	}
 
 	/** A logged-in user tried to manage something they don't own. */
