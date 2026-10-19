@@ -22,6 +22,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 /**
  * A client's appointment at a salon.
@@ -74,6 +75,14 @@ public class Booking {
 
 	@Column(nullable = false, updatable = false)
 	private Instant createdAt;
+
+	/**
+	 * Optimistic locking: JPA adds {@code WHERE version = ?} to every update and
+	 * increases the number. If someone else changed the booking since it was read, the
+	 * update finds no row and fails, instead of silently overwriting their change.
+	 */
+	@Version
+	private long version;
 
 	protected Booking() {
 	}

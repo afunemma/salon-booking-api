@@ -1,5 +1,6 @@
 package io.github.afunemma.salonbooking.booking;
 
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -48,13 +49,24 @@ class ClientCancelController {
 
 	@PostMapping("/bookings/{bookingId}/cancel")
 	String cancel(@PathVariable Long bookingId, @RequestParam String token, HttpServletResponse response) {
-		return bookingService.cancelByClient(bookingId, token)
-			.map(booking -> "redirect:" + UriComponentsBuilder.fromPath("/bookings/{id}/cancel")
-				.queryParam("token", token)
-				.buildAndExpand(bookingId)
-				.encode()
-				.toUriString())
-			.orElseGet(() -> invalidLink(response));
+		try {
+			return bookingService.cancelByClient(bookingId, token)
+				.map(booking -> redirectToPage(bookingId, token))
+				.orElseGet(() -> invalidLink(response));
+		}
+		catch (OptimisticLockingFailureException ex) {
+			// The salon changed the booking at the same moment (e.g. marked it done).
+			// Showing the page again shows what it is now.
+			return redirectToPage(bookingId, token);
+		}
+	}
+
+	private static String redirectToPage(Long bookingId, String token) {
+		return "redirect:" + UriComponentsBuilder.fromPath("/bookings/{id}/cancel")
+			.queryParam("token", token)
+			.buildAndExpand(bookingId)
+			.encode()
+			.toUriString();
 	}
 
 	private static String invalidLink(HttpServletResponse response) {
