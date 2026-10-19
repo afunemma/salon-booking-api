@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title th:text="|Edit service · ${salon}|">Edit service · Sipho's Cuts</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <nav th:replace="~{owner/fragments :: nav}"></nav>
+    <h1>Edit service</h1>
+    <p><a th:href="@{/owner/salons/{id}/services(id=${salonId})}">← Services &amp; prices</a></p>
+    <form method="post" class="booking-form" th:action="@{/owner/salons/{s}/services/{id}(s=${salonId},id=${serviceId})}" th:object="${form}">
+        <th:block th:replace="~{owner/service-fields :: fields}"></th:block>
+        <p class="hint">Changing the length only affects new bookings: existing ones keep their times.</p>
+        <button type="submit">Save changes</button>
+    </form>
+</main>
+</body>
+</html>

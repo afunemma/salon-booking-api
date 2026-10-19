@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/* The service fields, shared by the add and edit forms. Prices are typed in rand. */-->
+<th:block th:fragment="fields">
+    <label>Name
+        <input type="text" th:field="*{name}" maxlength="255" required>
+    </label>
+    <p class="error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">must not be blank</p>
+    <label>Length in minutes
+        <input type="number" th:field="*{durationMinutes}" min="1" max="720" required>
+    </label>
+    <p class="error" th:if="${#fields.hasErrors('durationMinutes')}" th:errors="*{durationMinutes}">must be greater than 0</p>
+    <label>Price in rand (optional)
+        <input type="number" th:field="*{price}" min="0" step="0.01" inputmode="decimal" placeholder="75.50">
+    </label>
+    <p class="error" th:if="${#fields.hasErrors('price')}" th:errors="*{price}">must be in rand</p>
+    <label>Up to, for a price range (optional)
+        <input type="number" th:field="*{priceUpTo}" min="0" step="0.01" inputmode="decimal" placeholder="100">
+    </label>
+    <p class="error" th:if="${#fields.hasErrors('priceUpTo')}" th:errors="*{priceUpTo}">must be in rand</p>
+    <p class="error" th:if="${#fields.hasErrors('priceRangeValid')}" th:errors="*{priceRangeValid}">"Up to" must not be lower</p>
+</th:block>
+</body>
+</html>

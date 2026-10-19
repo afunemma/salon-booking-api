@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import io.github.afunemma.salonbooking.booking.ClientBookingController.ServiceOption;
+import io.github.afunemma.salonbooking.salon.Prices;
 import io.github.afunemma.salonbooking.salon.SalonDtos.ServiceResponse;
 
 class ServiceOptionTest {
@@ -13,10 +14,10 @@ class ServiceOptionTest {
 	@Test
 	@DisplayName("Prices show in rand, with cents only when there are some")
 	void formatsRand() {
-		assertThat(ServiceOption.rand(5000)).isEqualTo("R50");
-		assertThat(ServiceOption.rand(7550)).isEqualTo("R75.50");
-		assertThat(ServiceOption.rand(7505)).isEqualTo("R75.05");
-		assertThat(ServiceOption.rand(0)).isEqualTo("R0");
+		assertThat(Prices.rand(5000)).isEqualTo("R50");
+		assertThat(Prices.rand(7550)).isEqualTo("R75.50");
+		assertThat(Prices.rand(7505)).isEqualTo("R75.05");
+		assertThat(Prices.rand(0)).isEqualTo("R0");
 	}
 
 	@Test
@@ -28,6 +29,15 @@ class ServiceOptionTest {
 			.isEqualTo("Manicure · 60 min · R200");
 		assertThat(ServiceOption.from(new ServiceResponse(1L, "Consultation", 15, null, null)).label())
 			.isEqualTo("Consultation · 15 min");
+	}
+
+	@Test
+	@DisplayName("A price range shows both ends; one price, or the same at both ends, shows once")
+	void ranges() {
+		assertThat(Prices.range(5000, 10000)).isEqualTo("R50–R100");
+		assertThat(Prices.range(7550, null)).isEqualTo("R75.50");
+		assertThat(Prices.range(20000, 20000)).isEqualTo("R200");
+		assertThat(Prices.range(null, null)).isNull();
 	}
 
 }

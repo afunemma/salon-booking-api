@@ -26,6 +26,7 @@ import io.github.afunemma.salonbooking.account.AuthService;
 import io.github.afunemma.salonbooking.booking.BookingService;
 import io.github.afunemma.salonbooking.common.ConflictException;
 import io.github.afunemma.salonbooking.common.NotFoundException;
+import io.github.afunemma.salonbooking.salon.Prices;
 import io.github.afunemma.salonbooking.salon.SalonDtos.CreateSalonRequest;
 import io.github.afunemma.salonbooking.salon.SalonDtos.SalonResponse;
 import io.github.afunemma.salonbooking.salon.SalonService;
@@ -115,6 +116,68 @@ class OwnerPagesController {
 		model.addAttribute("date", day);
 		model.addAttribute("bookings", bookingService.listBookings(salonId, owner.userId(), day));
 		return "owner/day";
+	}
+
+	/** The salon's services, each with an Edit link, and a form to add one. */
+	@GetMapping("/owner/salons/{salonId}/services")
+	String services(@AuthenticationPrincipal OwnerPrincipal owner, @PathVariable Long salonId, Model model) {
+		model.addAttribute("salon", salonService.findOwnedSalon(salonId, owner.userId()).getName());
+		model.addAttribute("salonId", salonId);
+		model.addAttribute("services",
+				salonService.listServices(salonId)
+					.stream()
+					.map(service -> new ServiceRow(service.id(), service.name(), service.durationMinutes(),
+							Prices.range(service.priceFromCents(), service.priceToCents())))
+					.toList());
+		if (!model.containsAttribute("form")) {
+			model.addAttribute("form", ServiceForm.empty());
+		}
+		return "owner/services";
+	}
+
+	@PostMapping("/owner/salons/{salonId}/services")
+	String addService(@AuthenticationPrincipal OwnerPrincipal owner, @PathVariable Long salonId,
+			@Valid @ModelAttribute("form") ServiceForm form, BindingResult errors, Model model,
+			RedirectAttributes redirect) {
+		if (errors.hasErrors()) {
+			return services(owner, salonId, model);
+		}
+		salonService.addService(salonId, owner.userId(), form.toRequest());
+		redirect.addFlashAttribute("message", "Service added.");
+		return "redirect:/owner/salons/" + salonId + "/services";
+	}
+
+	@GetMapping("/owner/salons/{salonId}/services/{serviceId}")
+	String editService(@AuthenticationPrincipal OwnerPrincipal owner, @PathVariable Long salonId,
+			@PathVariable Long serviceId, Model model) {
+		model.addAttribute("salon", salonService.findOwnedSalon(salonId, owner.userId()).getName());
+		model.addAttribute("salonId", salonId);
+		model.addAttribute("serviceId", serviceId);
+		model.addAttribute("form", ServiceForm.from(salonService.listServices(salonId)
+			.stream()
+			.filter(service -> service.id().equals(serviceId))
+			.findFirst()
+			.orElseThrow(() -> new NotFoundException("Service " + serviceId + " not found in salon " + salonId))));
+		return "owner/service-edit";
+	}
+
+	@PostMapping("/owner/salons/{salonId}/services/{serviceId}")
+	String updateService(@AuthenticationPrincipal OwnerPrincipal owner, @PathVariable Long salonId,
+			@PathVariable Long serviceId, @Valid @ModelAttribute("form") ServiceForm form, BindingResult errors,
+			Model model, RedirectAttributes redirect) {
+		if (errors.hasErrors()) {
+			model.addAttribute("salon", salonService.findOwnedSalon(salonId, owner.userId()).getName());
+			model.addAttribute("salonId", salonId);
+			model.addAttribute("serviceId", serviceId);
+			return "owner/service-edit";
+		}
+		salonService.updateService(salonId, serviceId, owner.userId(), form.toRequest());
+		redirect.addFlashAttribute("message", "Service updated. Existing bookings keep their times.");
+		return "redirect:/owner/salons/" + salonId + "/services";
+	}
+
+	/** A service in the owner's list, with its price already written in rand. */
+	record ServiceRow(Long id, String name, int durationMinutes, @Nullable String price) {
 	}
 
 	/** Marks a booking done, a no-show, or cancelled, then shows the day again. */

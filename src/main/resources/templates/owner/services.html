@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title th:text="|Services · ${salon}|">Services · Sipho's Cuts</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <nav th:replace="~{owner/fragments :: nav}"></nav>
+    <h1>Services &amp; prices</h1>
+    <p><a th:href="@{/owner/salons/{id}(id=${salonId})}" th:text="|← ${salon}|">← Sipho's Cuts</a></p>
+    <p th:if="${message != null}" class="booked" role="status" th:text="${message}">Service added.</p>
+
+    <p th:if="${services.isEmpty()}">No services yet. Add your first one below, so clients can book.</p>
+    <ul class="cards" th:unless="${services.isEmpty()}">
+        <li th:each="service : ${services}">
+            <strong th:text="${service.name}">Haircut</strong>
+            <span th:text="|${service.durationMinutes} min|">35 min</span>
+            <span th:if="${service.price != null}" th:text="|· ${service.price}|">· R50–R100</span>
+            <a class="edit-link" th:href="@{/owner/salons/{s}/services/{id}(s=${salonId},id=${service.id})}">Edit</a>
+        </li>
+    </ul>
+
+    <h2>Add a service</h2>
+    <form method="post" class="booking-form" th:action="@{/owner/salons/{id}/services(id=${salonId})}" th:object="${form}">
+        <th:block th:replace="~{owner/service-fields :: fields}"></th:block>
+        <button type="submit">Add service</button>
+    </form>
+</main>
+</body>
+</html>
