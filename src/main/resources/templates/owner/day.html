@@ -11,7 +11,8 @@
 <main>
     <nav th:replace="~{owner/fragments :: nav}"></nav>
     <h1 th:text="${salon}">Sipho's Cuts</h1>
-    <p><a th:href="@{/owner/salons/{id}/services(id=${salonId})}">Services &amp; prices</a></p>
+    <p><a th:href="@{/owner/salons/{id}/services(id=${salonId})}">Services &amp; prices</a>
+        · <a th:href="@{/owner/salons/{id}/staff(id=${salonId})}">Staff &amp; time off</a></p>
     <p class="hint">Clients book at
         <a th:href="@{/salons/{id}/book(id=${salonId})}" th:text="@{/salons/{id}/book(id=${salonId})}">/salons/1/book</a></p>
 
