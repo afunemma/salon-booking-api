@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title th:text="|Staff · ${salon}|">Staff · Sipho's Cuts</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <nav th:replace="~{owner/fragments :: nav}"></nav>
+    <h1>Staff &amp; time off</h1>
+    <p><a th:href="@{/owner/salons/{id}(id=${salonId})}" th:text="|← ${salon}|">← Sipho's Cuts</a></p>
+    <p th:if="${message != null}" class="booked" role="status" th:text="${message}">Lindiwe was added.</p>
+
+    <h2>Staff</h2>
+    <ul class="cards">
+        <li th:each="member : ${staff}">
+            <strong th:text="${member.name}">Sipho</strong>
+            <a class="edit-link" th:href="@{/owner/salons/{s}/staff/{id}(s=${salonId},id=${member.id})}">Edit</a><br>
+            <span th:text="|${member.days} · ${member.hours}|">Mon–Sat · 09:00–20:00</span>
+            <span th:if="${member.breakTime != null}" th:text="|· break ${member.breakTime}|">· break 13:00–13:30</span>
+        </li>
+    </ul>
+
+    <h3>Add staff</h3>
+    <p th:if="${staffError != null}" class="error" role="alert" th:text="${staffError}">Working hours must be within opening hours</p>
+    <form method="post" class="booking-form" th:action="@{/owner/salons/{id}/staff(id=${salonId})}" th:object="${staffForm}">
+        <th:block th:replace="~{owner/staff-fields :: fields(schedule=${staffForm})}"></th:block>
+        <button type="submit">Add staff</button>
+    </form>
+
+    <h2>Time off</h2>
+    <p th:if="${timeOff.isEmpty()}">No time off coming up.</p>
+    <ul class="cards" th:unless="${timeOff.isEmpty()}">
+        <li th:each="entry : ${timeOff}">
+            <strong th:text="${entry.who}">Whole salon</strong>
+            <span th:if="${entry.isOneDay()}" th:text="${#temporals.format(entry.firstDay, 'EEE d MMM yyyy')}">Tue 24 Dec 2030</span>
+            <span th:unless="${entry.isOneDay()}"
+                  th:text="|${#temporals.format(entry.firstDay, 'EEE d MMM')} – ${#temporals.format(entry.lastDay, 'EEE d MMM yyyy')}|">Tue 24 Dec – Thu 26 Dec 2030</span>
+            <form method="post" class="inline-form" th:action="@{/owner/salons/{s}/time-off/{id}/delete(s=${salonId},id=${entry.id})}">
+                <button type="submit" class="link">Remove</button>
+            </form>
+        </li>
+    </ul>
+
+    <h3>Add time off</h3>
+    <p class="hint">Days already booked can't be taken off: cancel those bookings first.</p>
+    <p th:if="${timeOffError != null}" class="error" role="alert" th:text="${timeOffError}">1 active booking falls in this time off</p>
+    <form method="post" class="booking-form" th:action="@{/owner/salons/{id}/time-off(id=${salonId})}" th:object="${timeOffForm}">
+        <label>Who
+            <select th:field="*{staffId}">
+                <option value="">Whole salon (closed)</option>
+                <option th:each="member : ${staffChoices}" th:value="${member.id}" th:text="${member.name}">Sipho</option>
+            </select>
+        </label>
+        <div class="two-columns">
+            <label>From
+                <input type="date" th:field="*{firstDay}" required>
+            </label>
+            <label>Until (included)
+                <input type="date" th:field="*{lastDay}" required>
+            </label>
+        </div>
+        <p class="error" th:each="message : ${#fields.allErrors()}" th:text="${message}">lastDay must not be before firstDay</p>
+        <button type="submit">Add time off</button>
+    </form>
+</main>
+</body>
+</html>

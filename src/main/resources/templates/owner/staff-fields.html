@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/* The staff fields, shared by the add and edit forms. Pass the form object as schedule, and make it th:object on the form too. */-->
+<th:block th:fragment="fields(schedule)">
+    <label>Name
+        <input type="text" th:field="*{name}" maxlength="255" required>
+    </label>
+    <p class="error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">must not be blank</p>
+    <div class="two-columns">
+        <label>Starts
+            <input type="time" th:field="*{startsAt}" required>
+        </label>
+        <label>Ends
+            <input type="time" th:field="*{endsAt}" required>
+        </label>
+    </div>
+    <p class="error" th:if="${#fields.hasErrors('hoursValid')}" th:errors="*{hoursValid}">the day must start before it ends</p>
+    <fieldset class="days">
+        <legend>Working days</legend>
+        <!--/* Written by hand, not th:field, so that unticking every day sends nothing and is reported as a mistake. */-->
+        <label th:each="option : ${days}" class="day">
+            <input type="checkbox" name="workingDays" th:value="${option.day}" th:checked="${schedule.worksOn(option.day)}">
+            <span th:text="${option.label}">Mon</span>
+        </label>
+    </fieldset>
+    <p class="error" th:if="${#fields.hasErrors('workingDays')}" th:errors="*{workingDays}">choose at least one working day</p>
+    <div class="two-columns">
+        <label>Break from (optional)
+            <input type="time" th:field="*{breakStartsAt}">
+        </label>
+        <label>Break until
+            <input type="time" th:field="*{breakEndsAt}">
+        </label>
+    </div>
+    <p class="error" th:if="${#fields.hasErrors('breakValid')}" th:errors="*{breakValid}">a break needs a start and an end</p>
+</th:block>
+</body>
+</html>
