@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title th:text="${salon}">Sipho's Cuts</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <nav th:replace="~{owner/fragments :: nav}"></nav>
+    <h1 th:text="${salon}">Sipho's Cuts</h1>
+    <p class="hint">Clients book at
+        <a th:href="@{/salons/{id}/book(id=${salonId})}" th:text="@{/salons/{id}/book(id=${salonId})}">/salons/1/book</a></p>
+
+    <form method="get" th:action="@{/owner/salons/{id}(id=${salonId})}" class="choices">
+        <label>Day
+            <input type="date" name="date" th:value="${date}">
+        </label>
+        <button type="submit" class="secondary">Show day</button>
+    </form>
+
+    <p th:if="${message != null}" class="booked" role="status" th:text="${message}">Booking updated.</p>
+    <p th:if="${error != null}" class="error" role="alert" th:text="${error}">That booking was changed</p>
+
+    <h2 th:text="${#temporals.format(date, 'EEEE d MMMM yyyy')}">Monday 7 January 2030</h2>
+    <p th:if="${bookings.isEmpty()}">No bookings on this day.</p>
+    <ul class="cards" th:unless="${bookings.isEmpty()}">
+        <li th:each="booking : ${bookings}" th:classappend="${booking.status.name() != 'BOOKED'} ? 'muted'">
+            <strong th:text="|${#temporals.format(booking.startTime, 'HH:mm')}–${#temporals.format(booking.endTime, 'HH:mm')}|">10:00–10:35</strong>
+            <span th:text="${booking.clientName}">Thabo</span>
+            <!--/* The barber answers calls, so the number is a tap-to-call link. */-->
+            <a th:href="|tel:${booking.clientPhone}|" th:text="${booking.clientPhone}">082 123 4567</a><br>
+            <span th:text="|${booking.serviceName} with ${booking.staffName}|">Haircut with Sipho</span>
+            <span class="status" th:text="${#strings.replace(#strings.capitalize(#strings.toLowerCase(booking.status.name())), '_', '-')}">Booked</span>
+            <div class="row-actions" th:if="${booking.status.name() == 'BOOKED'}">
+                <form method="post" th:action="@{/owner/salons/{s}/bookings/{b}/complete(s=${salonId},b=${booking.id},date=${date})}">
+                    <button type="submit" class="small secondary">Done</button>
+                </form>
+                <form method="post" th:action="@{/owner/salons/{s}/bookings/{b}/no-show(s=${salonId},b=${booking.id},date=${date})}">
+                    <button type="submit" class="small">No-show</button>
+                </form>
+                <form method="post" th:action="@{/owner/salons/{s}/bookings/{b}/cancel(s=${salonId},b=${booking.id},date=${date})}">
+                    <button type="submit" class="small plain">Cancel</button>
+                </form>
+            </div>
+        </li>
+    </ul>
+</main>
+</body>
+</html>

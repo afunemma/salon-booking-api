@@ -22,6 +22,18 @@
         a { color: #1f5f99; }
         .error { color: #b3261e; }
         .hint { color: #666; font-size: 0.9rem; }
+        .owner-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .owner-nav form { margin: 0; }
+        button.link { width: auto; padding: 0; background: none; color: #1f5f99; text-decoration: underline; }
+        .cards { list-style: none; padding: 0; }
+        .cards li { padding: 0.8rem 0; border-bottom: 1px solid #ddd; line-height: 1.6; }
+        .cards li.muted { opacity: 0.6; }
+        .status { display: inline-block; margin-left: 0.4rem; padding: 0 0.5rem; border-radius: 999px;
+                  background: #eee; font-size: 0.85rem; }
+        .row-actions { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+        .row-actions form { flex: 1; margin: 0; }
+        button.small { padding: 0.5rem; font-size: 0.9rem; }
+        button.plain { background: #777; }
         .booked { background: #e6f4ea; color: #1d6b3a; padding: 0.8rem; border-radius: 8px; font-weight: 600; }
         @media (prefers-color-scheme: dark) {
             body { background: #121212; color: #eee; }
@@ -30,6 +42,9 @@
             a { color: #8ab8e6; }
             .times a { color: #8ab8e6; border-color: #8ab8e6; }
             .booked { background: #1d3b27; color: #7fd69a; }
+            .cards li { border-color: #333; }
+            .status { background: #333; }
+            button.link { color: #8ab8e6; }
             .hint { color: #aaa; }
         }
     </style>

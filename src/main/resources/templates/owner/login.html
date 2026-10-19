@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Salon owner login</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <h1>Salon owner login</h1>
+    <p th:if="${param.registered}" class="booked" role="status">Your account is ready. Please log in.</p>
+    <p th:if="${param.logout}" class="hint" role="status">You're logged out.</p>
+    <p th:if="${param.error != null and param.error[0] == 'too-many'}" class="error" role="alert">
+        Too many login attempts. Please wait a few minutes and try again.</p>
+    <p th:if="${param.error != null and param.error[0] != 'too-many'}" class="error" role="alert">
+        Wrong email or password.</p>
+
+    <form method="post" class="booking-form" th:action="@{/owner/login}">
+        <label>Email
+            <input type="email" name="email" autocomplete="username" required>
+        </label>
+        <label>Password
+            <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">Log in</button>
+    </form>
+    <p>New here? <a th:href="@{/owner/register}">Create an owner account</a></p>
+</main>
+</body>
+</html>

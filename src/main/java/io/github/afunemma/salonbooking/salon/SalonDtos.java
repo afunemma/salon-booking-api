@@ -39,7 +39,7 @@ public final class SalonDtos {
 		// it.
 		@JsonIgnore
 		@AssertTrue(message = "opensAt must be before closesAt")
-		boolean isOpeningHoursValid() {
+		public boolean isOpeningHoursValid() {
 			return opensAt == null || closesAt == null || opensAt.isBefore(closesAt);
 		}
 	}
