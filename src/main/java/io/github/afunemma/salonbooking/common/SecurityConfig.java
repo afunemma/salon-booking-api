@@ -72,6 +72,9 @@ class SecurityConfig {
 				// The client booking pages: anyone can book, as through the API.
 				.requestMatchers("/salons/*/book", "/salons/*/book/details")
 				.permitAll()
+				// The landing page.
+				.requestMatchers(HttpMethod.GET, "/")
+				.permitAll()
 				.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/health/**",
 						"/livez", "/readyz")
 				.permitAll()

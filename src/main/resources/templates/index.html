@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Online booking for salons and barbers: clients book in under a minute, reminders go out by themselves, and cancelling takes one tap.">
+    <title>Salon Booking</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <h1>Salon Booking</h1>
+    <p class="lead">Clients book a haircut in under a minute. The evening before, they get a reminder with a
+        link to cancel, so a slot that would be wasted goes to someone else.</p>
+
+    <ul class="cards entry">
+        <li>
+            <h2>Book an appointment</h2>
+            <th:block th:if="${featuredSalonId != null}">
+                <p>Pick a service and a time, and you're booked. No account needed.</p>
+                <a class="button" th:href="@{/salons/{id}/book(id=${featuredSalonId})}"
+                   th:text="|Book at ${featuredSalonName}|">Book at Demo Salon</a>
+            </th:block>
+            <p th:unless="${featuredSalonId != null}">Ask your salon for its booking link.</p>
+        </li>
+        <li>
+            <h2>Run your salon</h2>
+            <p>See each day's bookings, mark them done or a no-show, and set services, prices, staff and time off.</p>
+            <a class="button secondary" th:href="@{/owner/register}">Create an owner account</a>
+            <p class="hint">Already have one? <a th:href="@{/owner/login}">Log in</a></p>
+        </li>
+        <li>
+            <h2>For developers</h2>
+            <p>A Java 25 and Spring Boot 4 REST API with PostgreSQL, tested against a real database and deployed
+                with Docker.</p>
+            <p><a th:href="@{/swagger-ui.html}">Try the API in Swagger UI</a> ·
+                <a href="https://github.com/afunemma/salon-booking-api">Source code on GitHub</a></p>
+        </li>
+    </ul>
+
+    <p th:if="${demo}" class="hint">This is a demo: data may be reset at any time. Please don't enter real
+        personal information.</p>
+</main>
+</body>
+</html>
