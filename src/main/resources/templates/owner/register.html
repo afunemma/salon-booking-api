@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Create an owner account</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <h1>Create an owner account</h1>
+    <p th:if="${error != null}" class="error" role="alert" th:text="${error}">This email is already registered</p>
+    <form method="post" class="booking-form" th:action="@{/owner/register}" th:object="${form}">
+        <label>Email
+            <input type="email" th:field="*{email}" autocomplete="username" required>
+        </label>
+        <p class="error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}">must be a well-formed email address</p>
+        <label>Password
+            <input type="password" th:field="*{password}" autocomplete="new-password" minlength="12" required>
+        </label>
+        <p class="error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}">size must be between 12 and 72</p>
+        <p class="hint">At least 12 characters.</p>
+        <button type="submit">Create account</button>
+    </form>
+    <p>Already have an account? <a th:href="@{/owner/login}">Log in</a></p>
+</main>
+</body>
+</html>

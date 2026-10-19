@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -33,7 +34,12 @@ import tools.jackson.databind.json.JsonMapper;
 @Configuration(proxyBeanMethods = false)
 class SecurityConfig {
 
+	/**
+	 * Everything except the owner pages, which have their own chain with sessions and
+	 * CSRF protection (checked first, see {@code OwnerSecurityConfig}).
+	 */
 	@Bean
+	@Order(2)
 	SecurityFilterChain securityFilterChain(HttpSecurity http, JsonMapper jsonMapper,
 			@Value("${management.server.port:-1}") int managementPort) throws Exception {
 		http
@@ -41,8 +47,9 @@ class SecurityConfig {
 			// sending a request with cookies it attaches automatically.
 			// This API uses no cookies or sessions: the token travels in the
 			// Authorization header, which browsers never add on their own.
-			// If cookie-based login is ever added, turn CSRF back on.
-			// See ADR-0006. CodeQL flags this line; the alert is dismissed
+			// The owner pages, which do use a session cookie, have their own
+			// chain with CSRF on (ADR-0019). See ADR-0006. CodeQL flags this line; the
+			// alert is dismissed
 			// as a false positive.
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

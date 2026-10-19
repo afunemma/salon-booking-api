@@ -80,7 +80,20 @@ public class AuthService {
 	 * use the login form to find out which emails have accounts.
 	 */
 	public TokenResponse login(LoginRequest request, String clientIp) {
-		String email = normalise(request.email());
+		Long userId = authenticate(request.email(), request.password(), clientIp);
+		IssuedToken token = tokenService.issue(userId);
+		return new TokenResponse(token.value(), "Bearer", token.lifetime().toSeconds());
+	}
+
+	/**
+	 * Checks an email and password, with the login rate limits, for both the API (which
+	 * then issues a token) and the owner pages (which then start a session).
+	 * @return the user's id
+	 * @throws TooManyRequestsException if a rate limit is reached
+	 * @throws BadCredentialsException if the email or password is wrong
+	 */
+	public Long authenticate(String rawEmail, String password, String clientIp) {
+		String email = normalise(rawEmail);
 		try {
 			limiter.checkAllowed(clientIp, email);
 		}
@@ -91,7 +104,7 @@ public class AuthService {
 		}
 		AppUser user = users.findByEmailIgnoreCase(email).orElse(null);
 		String hash = (user != null) ? user.getPasswordHash() : dummyHash;
-		boolean passwordMatches = passwordEncoder.matches(request.password(), hash);
+		boolean passwordMatches = passwordEncoder.matches(password, hash);
 		if (user == null || !passwordMatches) {
 			limiter.recordFailure(email);
 			countLogin("failure");
@@ -100,9 +113,8 @@ public class AuthService {
 		}
 		limiter.recordSuccess(email);
 		countLogin("success");
-		IssuedToken token = tokenService.issue(user.getId());
 		log.info("User logged in: id={}", user.getId());
-		return new TokenResponse(token.value(), "Bearer", token.lifetime().toSeconds());
+		return user.getId();
 	}
 
 	/** A rising failure or rate_limited count is a sign of password-guessing attacks. */

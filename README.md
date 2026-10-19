@@ -14,6 +14,8 @@ A REST API that lets clients book appointments at salons (barbers, hair, braids,
 
 **📱 Book like a client:** [salon-booking-api-wguy.onrender.com/salons/1/book](https://salon-booking-api-wguy.onrender.com/salons/1/book). Pick a service and a time, enter a name and phone number, and you land on your own booking page with a cancel button. Best on a phone.
 
+**🧑‍💼 Run a salon:** [/owner/register](https://salon-booking-api-wguy.onrender.com/owner/register). Create an owner account, log in, create a salon, then manage each day's bookings: Done, No-show or Cancel. Services can be added through the API for now.
+
 A 2-minute tour of the API in Swagger UI (click an endpoint → **Try it out** → **Execute**):
 
 1. **See free times as a client:** `GET /api/v1/salons/{salonId}/free-slots` with `salonId` **1** (the Demo Salon), `serviceId` **1**, and tomorrow's date. The Demo Salon has two staff (`GET /api/v1/salons/1/staff`): Sipho works Monday to Saturday with lunch at 13:00, Lindiwe Tuesday to Saturday from 12:00. Add `staffId` to see one person's times.
@@ -88,6 +90,8 @@ Dependencies point one way only, enforced by [`ArchitectureTest`](src/test/java/
 ```mermaid
 flowchart LR
     reminder --> booking
+    owner --> booking
+    owner --> account
     booking --> salon --> scheduling
     booking --> scheduling
     account --> common
@@ -330,6 +334,15 @@ Clients book on a small web page served by the app itself: `/salons/{salonId}/bo
 - **No booking with invented numbers from one machine:** at most 20 booking attempts per IP address per hour, generous because mobile users often share one IP. Then `429 Too Many Requests` with `Retry-After` ([ADR-0017](docs/adr/0017-limit-booking-attempts-per-ip-address.md)).
 - **Tests:** [`ClientBookingPageIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/booking/ClientBookingPageIntegrationTest.java) covers the whole flow, validation errors, a slot taken first, the staff choice, escaping and "not found".
 
+### Owner pages
+
+Owners log in at `/owner/login` and manage their salon from a phone: "My salons", a form to create one, and the **day view** with each booking's time, client (tap the number to call), service, staff member, and **Done / No-show / Cancel** buttons.
+
+- **A separate security set-up** ([ADR-0019](docs/adr/0019-session-login-for-owner-pages.md)): a web page can't send the API's `Authorization` header without JavaScript keeping the token where scripts can steal it. So `/owner/**` has its own Spring Security filter chain with a login form and a session cookie (HttpOnly, SameSite=Lax, Secure in production), **with CSRF protection on**. The API's chain stays stateless with JWT.
+- **The same login rules:** the form uses the same `AuthService.authenticate` as the API, with the same rate limits and the same answer for a wrong email or password.
+- **The same services:** ownership checks and booking rules are shared with the API. Another owner's salon looks like one that doesn't exist.
+- **Tests:** [`OwnerPagesIntegrationTest`](src/test/java/io/github/afunemma/salonbooking/owner/OwnerPagesIntegrationTest.java) logs in through the real form and covers the day view, marking a booking done, CSRF (a form without the token gets 403), another owner's salon, the login rate limit, logging out, and that the API stays stateless.
+
 ### Cancelling from the link
 
 A client who can't come taps the link in their reminder, sees their appointment and presses **Cancel my booking**. The slot is free again straight away, so the salon gets a chance to fill it instead of losing it to a no-show ([ADR-0010](docs/adr/0010-signed-cancel-links-for-clients.md)).
@@ -425,6 +438,7 @@ Full reasoning: [ADR-0006](docs/adr/0006-stateless-jwt-auth-for-owners-only.md).
 - **Login gives nothing away:** a wrong password and an unknown email return an identical response in the same time (a dummy hash check), so the login form can't be used to discover registered emails.
 - **The signing keys come from the environment,** never from a committed file. Login tokens and clients' cancel links each have their own key.
 - **Cancel links** are HMAC-signed per booking, compared in constant time, and only cancel on a POST, never when the link is opened ([ADR-0010](docs/adr/0010-signed-cancel-links-for-clients.md)).
+- **Owner pages use sessions, with CSRF on:** a separate filter chain for `/owner/**` with a login form and an HttpOnly, SameSite session cookie; the API stays stateless ([ADR-0019](docs/adr/0019-session-login-for-owner-pages.md)).
 - **Booking limits:** 3 upcoming bookings per phone number per salon, and 20 booking attempts per IP address per hour ([ADR-0016](docs/adr/0016-limit-upcoming-bookings-per-phone-number.md), [ADR-0017](docs/adr/0017-limit-booking-attempts-per-ip-address.md)). Login and booking share one token-bucket limiter, `KeyedRateLimiter`.
 - **Login rate limiting** ([ADR-0007](docs/adr/0007-in-memory-login-rate-limiting.md)): at most 20 attempts per minute per IP address, and 5 failed attempts per email before that email is paused. A successful login resets the count. Blocked attempts get `429 Too Many Requests` with a `Retry-After` header.
 - **Errors:** security errors (`401`, `403`) use the same Problem Details format as every other error.
@@ -507,6 +521,8 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] At most 3 upcoming bookings per phone number per salon
 - [x] Limit booking attempts per IP address, against invented phone numbers
 - [x] Optimistic locking, so simultaneous changes to one booking can't overwrite each other
+- [x] Owner pages: log in, create a salon, and manage the day's bookings
+- [ ] Owner pages for services and prices, staff, and time off
 - [ ] Salons send reminders from their own WhatsApp number, connected through Meta's Embedded Signup ([ADR-0015](docs/adr/0015-one-platform-whatsapp-number-for-now.md))
 - [x] Staff members with their own working hours; clients can choose who to book with
 - [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings

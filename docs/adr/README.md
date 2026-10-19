@@ -24,3 +24,4 @@ New decisions get the next number. If a decision is later replaced, its status b
 | [0016](0016-limit-upcoming-bookings-per-phone-number.md) | Limit upcoming bookings per phone number | Accepted |
 | [0017](0017-limit-booking-attempts-per-ip-address.md) | Limit booking attempts per IP address | Accepted |
 | [0018](0018-optimistic-locking-for-booking-changes.md) | Optimistic locking for changes to existing bookings | Accepted |
+| [0019](0019-session-login-for-owner-pages.md) | Session login with CSRF protection for the owner pages | Accepted |

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>My salons</title>
+    <style th:replace="~{fragments :: style}"></style>
+</head>
+<body>
+<main>
+    <nav th:replace="~{owner/fragments :: nav}"></nav>
+    <h1>My salons</h1>
+    <p class="hint" th:text="|Logged in as ${owner.email}|">Logged in as thabo@example.com</p>
+
+    <p th:if="${salons.isEmpty()}">You don't have a salon yet. Create one below.</p>
+    <ul class="cards" th:unless="${salons.isEmpty()}">
+        <li th:each="salon : ${salons}">
+            <a th:href="@{/owner/salons/{id}(id=${salon.id})}" th:text="${salon.name}">Sipho's Cuts</a>
+            <span class="hint" th:text="|Open ${#temporals.format(salon.opensAt, 'HH:mm')}–${#temporals.format(salon.closesAt, 'HH:mm')}|">Open 09:00–20:00</span>
+        </li>
+    </ul>
+
+    <h2>Create a salon</h2>
+    <form method="post" class="booking-form" th:action="@{/owner/salons}" th:object="${form}">
+        <label>Name
+            <input type="text" th:field="*{name}" maxlength="255" required>
+        </label>
+        <p class="error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">must not be blank</p>
+        <label>Opens at
+            <input type="time" th:field="*{opensAt}" required>
+        </label>
+        <label>Closes at
+            <input type="time" th:field="*{closesAt}" required>
+        </label>
+        <p class="error" th:if="${#fields.hasErrors('openingHoursValid')}" th:errors="*{openingHoursValid}">opensAt must be before closesAt</p>
+        <button type="submit">Create salon</button>
+    </form>
+</main>
+</body>
+</html>
