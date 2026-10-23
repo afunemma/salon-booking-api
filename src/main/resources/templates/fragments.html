@@ -48,6 +48,12 @@
         button.small { padding: 0.5rem; font-size: 0.9rem; }
         button.plain { background: #777; }
         .booked { background: #e6f4ea; color: #1d6b3a; padding: 0.8rem; border-radius: 8px; font-weight: 600; }
+        .share { margin-bottom: 1.5rem; }
+        .share input { margin-bottom: 0.5rem; }
+        .share-actions { display: flex; gap: 0.5rem; }
+        .share-actions > * { flex: 1; box-sizing: border-box; padding: 0.8rem; font-size: 0.95rem; font-weight: 600; }
+        /* WhatsApp's own green is too light for white text, so a darker one. */
+        a.button.whatsapp { background: #1d6b3a; }
         @media (prefers-color-scheme: dark) {
             body { background: #121212; color: #eee; }
             main { background: #1e1e1e; }

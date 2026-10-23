@@ -533,6 +533,7 @@ docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod,demo \
 - [x] Owner pages for services and prices, typed in rand
 - [x] Owner pages for staff, working days, breaks and time off
 - [x] A landing page at `/`, linking to the Demo Salon on the live demo
+- [x] Owners copy their booking link or share it on WhatsApp from the day view
 - [ ] Salons send reminders from their own WhatsApp number, connected through Meta's Embedded Signup ([ADR-0015](docs/adr/0015-one-platform-whatsapp-number-for-now.md))
 - [x] Staff members with their own working hours; clients can choose who to book with
 - [x] Weekly days off and a daily break per staff member; schedule changes can't strand bookings
