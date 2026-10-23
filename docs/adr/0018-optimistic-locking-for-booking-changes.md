@@ -26,6 +26,6 @@ New bookings are already protected by the salon row lock and the exclusion const
 
 ## Alternatives considered
 
-- **A row lock (`SELECT … FOR UPDATE`) on every status change:** also correct, but blocks readers and holds a lock for every change, to prevent a rare clash.
+- **A row lock (`SELECT … FOR UPDATE`) on every status change:** also correct, but every change would take a lock and make other changes to that booking wait, to prevent a rare clash. (Plain reads aren't blocked: PostgreSQL's MVCC lets a `SELECT` read the last committed row without waiting for the lock.)
 - **Lock the salon row,** as booking does: correct, but serialises unrelated changes across the whole salon.
 - **Last write wins:** simplest, and the bug this fixes.
