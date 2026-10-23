@@ -113,6 +113,21 @@ class OwnerPagesIntegrationTest {
 	}
 
 	@Test
+	@DisplayName("The day view shows the full booking link, with Copy and Share on WhatsApp buttons")
+	void shareBookingLink() {
+		MockHttpSession session = loggedIn();
+		long salonId = createSalonWithBooking(session);
+
+		String bookingUrl = "http://localhost:8080/salons/" + salonId + "/book";
+		assertThat(dayView(session, salonId)).bodyText()
+			.contains("value=\"" + bookingUrl + "\"", "Copy link")
+			// Spaces as %20 and the link itself encoded, so WhatsApp gets the whole
+			// message.
+			.contains("https://wa.me/?text=Book%20your%20next%20appointment%20at%20Sipho%27s%20Cuts%3A%20"
+					+ "http%3A%2F%2Flocalhost%3A8080%2Fsalons%2F" + salonId + "%2Fbook");
+	}
+
+	@Test
 	@DisplayName("Forms without the CSRF token are refused, so other websites can't act for a logged-in owner")
 	void csrfProtection() {
 		MockHttpSession session = loggedIn();

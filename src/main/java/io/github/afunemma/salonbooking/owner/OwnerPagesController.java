@@ -1,5 +1,6 @@
 package io.github.afunemma.salonbooking.owner;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDate;
 
@@ -16,10 +17,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.UriUtils;
 
 import io.github.afunemma.salonbooking.account.AuthDtos.RegisterRequest;
 import io.github.afunemma.salonbooking.account.AuthService;
 import io.github.afunemma.salonbooking.booking.BookingService;
+import io.github.afunemma.salonbooking.common.AppProperties;
 import io.github.afunemma.salonbooking.common.ConflictException;
 import io.github.afunemma.salonbooking.common.NotFoundException;
 import io.github.afunemma.salonbooking.salon.Prices;
@@ -46,12 +49,15 @@ class OwnerPagesController {
 
 	private final Clock clock;
 
-	OwnerPagesController(AuthService authService, SalonService salonService, BookingService bookingService,
-			Clock clock) {
+	private final String baseUrl;
+
+	OwnerPagesController(AuthService authService, SalonService salonService, BookingService bookingService, Clock clock,
+			AppProperties properties) {
 		this.authService = authService;
 		this.salonService = salonService;
 		this.bookingService = bookingService;
 		this.clock = clock;
+		this.baseUrl = properties.publicBaseUrl().toString().replaceAll("/+$", "");
 	}
 
 	@GetMapping("/owner/login")
@@ -107,11 +113,24 @@ class OwnerPagesController {
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Nullable LocalDate date,
 			Model model) {
 		LocalDate day = date != null ? date : LocalDate.now(clock);
-		model.addAttribute("salon", salonService.findOwnedSalon(salonId, owner.userId()).getName());
+		String salonName = salonService.findOwnedSalon(salonId, owner.userId()).getName();
+		String bookingUrl = baseUrl + "/salons/" + salonId + "/book";
+		model.addAttribute("salon", salonName);
 		model.addAttribute("salonId", salonId);
+		model.addAttribute("bookingUrl", bookingUrl);
+		model.addAttribute("whatsAppUrl",
+				whatsAppShareUrl("Book your next appointment at " + salonName + ": " + bookingUrl));
 		model.addAttribute("date", day);
 		model.addAttribute("bookings", bookingService.listBookings(salonId, owner.userId(), day));
 		return "owner/day";
+	}
+
+	/**
+	 * A wa.me link that opens WhatsApp with the message filled in; the owner then picks
+	 * who to send it to. Spaces must be %20, not "+", so URLEncoder isn't used.
+	 */
+	private static String whatsAppShareUrl(String message) {
+		return "https://wa.me/?text=" + UriUtils.encode(message, StandardCharsets.UTF_8);
 	}
 
 	/** The salon's services, each with an Edit link, and a form to add one. */

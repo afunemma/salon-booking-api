@@ -13,8 +13,15 @@
     <h1 th:text="${salon}">Sipho's Cuts</h1>
     <p><a th:href="@{/owner/salons/{id}/services(id=${salonId})}">Services &amp; prices</a>
         · <a th:href="@{/owner/salons/{id}/staff(id=${salonId})}">Staff &amp; time off</a></p>
-    <p class="hint">Clients book at
-        <a th:href="@{/salons/{id}/book(id=${salonId})}" th:text="@{/salons/{id}/book(id=${salonId})}">/salons/1/book</a></p>
+    <section class="share">
+        <label for="booking-link">Your booking link: send it to clients</label>
+        <input type="text" id="booking-link" readonly th:value="${bookingUrl}"
+               value="https://salon-booking-api-wguy.onrender.com/salons/1/book">
+        <div class="share-actions">
+            <button type="button" id="copy-link" class="secondary">Copy link</button>
+            <a class="button whatsapp" th:href="${whatsAppUrl}" target="_blank" rel="noopener">Share on WhatsApp</a>
+        </div>
+    </section>
 
     <form method="get" th:action="@{/owner/salons/{id}(id=${salonId})}" class="choices">
         <label>Day
@@ -50,5 +57,22 @@
         </li>
     </ul>
 </main>
+<script>
+    // The clipboard API only works on https (or localhost). If it fails, select the link
+    // so the owner can copy it by hand.
+    document.getElementById('copy-link').addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        const link = document.getElementById('booking-link');
+        try {
+            await navigator.clipboard.writeText(link.value);
+            button.textContent = 'Copied!';
+        }
+        catch {
+            link.select();
+            button.textContent = 'Link selected: copy it';
+        }
+        setTimeout(() => button.textContent = 'Copy link', 2500);
+    });
+</script>
 </body>
 </html>
